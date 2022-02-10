@@ -78,7 +78,14 @@ void FileTypeHelper::setupBuiltInTypes()
         type.m_type = FileType::Others;
         type.m_typeName = QStringLiteral("Others");
         type.m_displayName = Buffer::tr("Others");
-        type.m_suffixes << QStringLiteral("drawio");
+        
+        auto suffixes = coreConfig.findFileTypeSuffix(type.m_typeName);
+        if (suffixes && !suffixes->isEmpty()) {
+            type.m_suffixes = *suffixes;
+        } else {
+            type.m_suffixes << QStringLiteral("drawio");
+        }
+        
         m_fileTypes.push_back(type);
     }
 }
