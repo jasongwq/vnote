@@ -78,6 +78,12 @@
                     "text",
                     "log"
                 ]
+            },
+            {
+                "name" : "Others",
+                "suffixes" : [
+                    "drawio"
+                ]
             }
         ],
         "shortcut_leader_key" : "Ctrl+G",
