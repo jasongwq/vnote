@@ -17,6 +17,7 @@
 #include <utils/fileutils.h>
 #include <utils/webutils.h>
 #include <utils/processutils.h>
+#include <utils/htmlutils.h>
 #include <core/file.h>
 
 using namespace vnotex;
@@ -191,13 +192,15 @@ bool WebViewExporter::writeHtmlFile(const QString &p_file,
                                     bool p_embedImages)
 {
     const auto baseName = QFileInfo(p_file).completeBaseName();
-    auto title = QString("%1 - %2").arg(baseName, ConfigMgr::c_appName);
+
     const QString resourceFolderName = baseName + "_files";
     auto resourceFolder = PathUtils::concatenateFilePath(PathUtils::parentDirPath(p_file), resourceFolderName);
 
     qDebug() << "HTML files folder" << resourceFolder;
 
     auto htmlContent = m_exportHtmlTemplate;
+
+    const auto title = QString("%1").arg(baseName);
     HtmlTemplateHelper::fillTitle(htmlContent, title);
 
     if (!p_styleContent.isEmpty() && p_embedStyles) {
@@ -348,7 +351,7 @@ void WebViewExporter::prepareWkhtmltopdfArguments(const ExportPdfOption &p_pdfOp
     if (p_pdfOption.m_addTableOfContents) {
         m_wkhtmltopdfArgs << "toc";
         m_wkhtmltopdfArgs << "--toc-text-size-shrink" << "1.0";
-        m_wkhtmltopdfArgs << "--toc-header-text" << tr("Table of Contents");
+        m_wkhtmltopdfArgs << "--toc-header-text" << HtmlUtils::unicodeEncode(tr("Table of Contents"));
     }
 }
 

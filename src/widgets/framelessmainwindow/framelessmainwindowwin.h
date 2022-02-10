@@ -21,6 +21,8 @@ namespace vnotex
 
         void moveEvent(QMoveEvent *p_event) Q_DECL_OVERRIDE;
 
+        void setWindowFlagsOnUpdate() Q_DECL_OVERRIDE;
+
     private:
         // To fix some unkonwn bugs of the interface.
         void forceRedraw();
@@ -40,6 +42,8 @@ namespace vnotex
 #else
     class FramelessMainWindowWinDummy
     {
+    public:
+        FramelessMainWindowWinDummy() = default;
     };
 #endif
 }

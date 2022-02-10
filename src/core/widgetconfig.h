@@ -30,6 +30,9 @@ namespace vnotex
         int getNodeExplorerViewOrder() const;
         void setNodeExplorerViewOrder(int p_viewOrder);
 
+        int getNodeExplorerExploreMode() const;
+        void setNodeExplorerExploreMode(int p_mode);
+
         bool isNodeExplorerExternalFilesVisible() const;
         void setNodeExplorerExternalFilesVisible(bool p_visible);
 
@@ -51,6 +54,9 @@ namespace vnotex
         bool getTagExplorerTwoColumnsEnabled() const;
         void setTagExplorerTwoColumnsEnabled(bool p_enabled);
 
+        int getNewNoteDefaultFileType() const;
+        void setNewNoteDefaultFileType(int p_type);
+
     private:
         int m_outlineAutoExpandedLevel = 6;
 
@@ -59,6 +65,8 @@ namespace vnotex
         FindOptions m_findAndReplaceOptions = FindOption::FindNone;
 
         int m_nodeExplorerViewOrder = 0;
+
+        int m_nodeExplorerExploreMode = 1;
 
         bool m_nodeExplorerExternalFilesVisible = true;
 
@@ -75,6 +83,8 @@ namespace vnotex
 
         // Whether enable two columns for tag explorer.
         bool m_tagExplorerTwoColumnsEnabled = false;
+
+        int m_newNoteDefaultFileType = 0;
     };
 }
 

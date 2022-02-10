@@ -5,6 +5,8 @@
 
 namespace vnotex
 {
+    class MainConfig;
+
     class TextEditorConfig : public IConfig
     {
     public:
@@ -46,7 +48,7 @@ namespace vnotex
         void setLineNumberType(TextEditorConfig::LineNumberType p_type);
 
         bool getTextFoldingEnabled() const;
-        void setTextFoldingEnabled(bool p_enable);
+        void setTextFoldingEnabled(bool p_enabled);
 
         TextEditorConfig::InputMode getInputMode() const;
         void setInputMode(TextEditorConfig::InputMode p_mode);
@@ -58,10 +60,13 @@ namespace vnotex
         void setWrapMode(TextEditorConfig::WrapMode p_mode);
 
         bool getExpandTabEnabled() const;
-        void setExpandTabEnabled(bool p_enable);
+        void setExpandTabEnabled(bool p_enabled);
 
         int getTabStopWidth() const;
         void setTabStopWidth(int p_width);
+
+        bool getHighlightWhitespaceEnabled() const;
+        void setHighlightWhitespaceEnabled(bool p_enabled);
 
         int getZoomDelta() const;
         void setZoomDelta(int p_delta);
@@ -70,6 +75,8 @@ namespace vnotex
         void setSpellCheckEnabled(bool p_enabled);
 
     private:
+        friend class MainConfig;
+
         QString lineNumberTypeToString(LineNumberType p_type) const;
         LineNumberType stringToLineNumberType(const QString &p_str) const;
 
@@ -95,6 +102,8 @@ namespace vnotex
         bool m_expandTab = true;
 
         int m_tabStopWidth = 4;
+
+        bool m_highlightWhitespace = false;
 
         int m_zoomDelta = 0;
 

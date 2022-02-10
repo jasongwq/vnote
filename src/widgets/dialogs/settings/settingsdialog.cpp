@@ -4,10 +4,17 @@
 #include <QVBoxLayout>
 #include <QStackedLayout>
 #include <QScrollArea>
+#include <QScrollBar>
+#include <QDebug>
+#include <QTimer>
+#include <QColor>
 
 #include <widgets/treewidget.h>
 #include <widgets/lineedit.h>
 #include <widgets/widgetsfactory.h>
+#include <widgets/propertydefs.h>
+#include <utils/widgetutils.h>
+#include <core/vnotex.h>
 
 #include "generalpage.h"
 #include "miscpage.h"
@@ -20,6 +27,7 @@
 #include "imagehostpage.h"
 #include "vipage.h"
 #include "notemanagementpage.h"
+#include "fileassociationpage.h"
 
 using namespace vnotex;
 
@@ -63,11 +71,20 @@ void SettingsDialog::setupPageExplorer(QBoxLayout *p_layout, QWidget *p_parent)
 {
     auto layout = new QVBoxLayout();
 
+    m_searchTimer = new QTimer(this);
+    m_searchTimer->setSingleShot(true);
+    m_searchTimer->setInterval(500);
+    connect(m_searchTimer, &QTimer::timeout,
+            this, &SettingsDialog::search);
+
     m_searchEdit = WidgetsFactory::createLineEdit(p_parent);
     m_searchEdit->setPlaceholderText(tr("Search"));
+    m_searchEdit->setClearButtonEnabled(true);
     layout->addWidget(m_searchEdit);
+    connect(m_searchEdit, &QLineEdit::textChanged,
+            m_searchTimer, QOverload<>::of(&QTimer::start));
 
-    m_pageExplorer = new TreeWidget(TreeWidget::None, p_parent);
+    m_pageExplorer = new TreeWidget(TreeWidget::EnhancedStyle, p_parent);
     TreeWidget::setupSingleColumnHeaderlessTree(m_pageExplorer, false, false);
     TreeWidget::showHorizontalScrollbar(m_pageExplorer);
     m_pageExplorer->setMinimumWidth(128);
@@ -78,6 +95,10 @@ void SettingsDialog::setupPageExplorer(QBoxLayout *p_layout, QWidget *p_parent)
                 Q_UNUSED(p_previous);
                 auto page = itemPage(p_item);
                 m_pageLayout->setCurrentWidget(page);
+                auto vsb = m_scrollArea->verticalScrollBar();
+                if (vsb) {
+                    vsb->setValue(0);
+                }
             });
 
     p_layout->addLayout(layout, 2);
@@ -151,6 +172,12 @@ void SettingsDialog::setupPages()
         auto page = new MiscPage(this);
         addPage(page);
         */
+    }
+
+    // File Association.
+    {
+        auto page = new FileAssociationPage(this);
+        addPage(page);
     }
 
     setChangesUnsaved(false);
@@ -250,7 +277,7 @@ bool SettingsDialog::savePages()
 void SettingsDialog::forEachPage(const std::function<bool(SettingsPage *)> &p_func)
 {
     for (int i = 0; i < m_pageLayout->count(); ++i) {
-        auto page = dynamic_cast<SettingsPage *>(m_pageLayout->widget(i));
+        auto page = static_cast<SettingsPage *>(m_pageLayout->widget(i));
         if (!p_func(page)) {
             break;
         }
@@ -273,4 +300,18 @@ QTreeWidgetItem *SettingsDialog::addSubPage(SettingsPage *p_page, QTreeWidgetIte
     auto subItem = new QTreeWidgetItem(p_parentItem);
     setupPage(subItem, p_page);
     return subItem;
+}
+
+void SettingsDialog::search()
+{
+    auto keywords = m_searchEdit->text().trimmed();
+    TreeWidget::forEachItem(m_pageExplorer, [this, keywords](QTreeWidgetItem *item) {
+            auto page = itemPage(item);
+            if (page->search(keywords)) {
+                m_pageExplorer->mark(item, 0);
+            } else {
+                m_pageExplorer->unmark(item, 0);
+            }
+            return true;
+        });
 }

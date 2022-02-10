@@ -5,9 +5,13 @@
 
 #include <QScopedPointer>
 
+#include <core/markdowneditorconfig.h>
+
 class QSplitter;
 class QStackedWidget;
 class QWebEngineView;
+class QActionGroup;
+class QTimer;
 
 namespace vte
 {
@@ -22,7 +26,6 @@ namespace vnotex
     class EditorMarkdownViewerAdapter;
     class PreviewHelper;
     struct Outline;
-    class MarkdownEditorConfig;
     class EditorConfig;
     class ImageHost;
     class SearchToken;
@@ -38,6 +41,8 @@ namespace vnotex
         ~MarkdownViewWindow();
 
         QString getLatestContent() const Q_DECL_OVERRIDE;
+
+        QString selectedText() const Q_DECL_OVERRIDE;
 
         void setMode(ViewWindowMode p_mode) Q_DECL_OVERRIDE;
 
@@ -79,6 +84,8 @@ namespace vnotex
 
         void toggleDebug() Q_DECL_OVERRIDE;
 
+        void print() Q_DECL_OVERRIDE;
+
     protected:
         void syncEditorFromBuffer() Q_DECL_OVERRIDE;
 
@@ -96,7 +103,7 @@ namespace vnotex
 
         QPoint getFloatingWidgetPosition() Q_DECL_OVERRIDE;
 
-        QString selectedText() const Q_DECL_OVERRIDE;
+        void updateViewModeMenu(QMenu *p_menu) Q_DECL_OVERRIDE;
 
     private:
         void setupUI();
@@ -144,7 +151,9 @@ namespace vnotex
 
         void setupOutlineProvider();
 
-        void updateWebViewerConfig(const MarkdownEditorConfig &p_config);
+        void updateEditorFromConfig();
+
+        void updateWebViewerConfig();
 
         void setModeInternal(ViewWindowMode p_mode, bool p_syncBuffer);
 
@@ -163,6 +172,14 @@ namespace vnotex
         bool updateConfigRevision();
 
         void setupDebugViewer();
+
+        void setEditViewMode(MarkdownEditorConfig::EditViewMode p_mode);
+
+        void syncEditorContentsToPreview();
+
+        void syncEditorPositionToPreview();
+
+        void handleExternalCodeBlockHighlightRequest(int p_idx, quint64 p_timeStamp, const QString &p_text);
 
         template <class T>
         static QSharedPointer<Outline> headingsToOutline(const QVector<T> &p_headings);
@@ -208,6 +225,14 @@ namespace vnotex
         QSharedPointer<OutlineProvider> m_outlineProvider;
 
         ImageHost *m_imageHost = nullptr;
+
+        bool m_viewerReady = false;
+
+        QActionGroup *m_viewModeActionGroup = nullptr;
+
+        MarkdownEditorConfig::EditViewMode m_editViewMode = MarkdownEditorConfig::EditViewMode::EditOnly;
+
+        QTimer *m_syncPreviewTimer = nullptr;
     };
 }
 

@@ -251,20 +251,20 @@ bool ManageNotebooksDialog::saveChangesToNotebook()
     return true;
 }
 
-void ManageNotebooksDialog::closeNotebook(const Notebook *p_notebook)
+bool ManageNotebooksDialog::closeNotebook(const Notebook *p_notebook)
 {
     if (!p_notebook) {
-        return;
+        return false;
     }
 
     int ret = MessageBoxHelper::questionOkCancel(MessageBoxHelper::Question,
                                                  tr("Close notebook (%1)?")
                                                    .arg(p_notebook->getName()),
-                                                 tr("The notebook could be opened by VNote again."),
+                                                 tr("The notebook could be opened by VNote again via \"Open Other Notebooks\" operation."),
                                                  tr("Notebook location: %1").arg(p_notebook->getRootFolderAbsolutePath()),
                                                  this);
     if (ret != QMessageBox::Ok) {
-        return;
+        return false;
     }
 
     try
@@ -274,11 +274,10 @@ void ManageNotebooksDialog::closeNotebook(const Notebook *p_notebook)
         MessageBoxHelper::notify(MessageBoxHelper::Warning,
                                  tr("Failed to close notebook (%1)").arg(p_e.what()),
                                  this);
-        loadNotebooks(nullptr);
-        return;
     }
 
     loadNotebooks(nullptr);
+    return true;
 }
 
 void ManageNotebooksDialog::removeNotebook(const Notebook *p_notebook)
@@ -298,9 +297,9 @@ void ManageNotebooksDialog::removeNotebook(const Notebook *p_notebook)
 
     const auto rootFolder = p_notebook->getRootFolderAbsolutePath();
 
-    closeNotebook(p_notebook);
-
-    WidgetUtils::openUrlByDesktop(QUrl::fromLocalFile(rootFolder));
+    if (closeNotebook(p_notebook)) {
+        WidgetUtils::openUrlByDesktop(QUrl::fromLocalFile(rootFolder));
+    }
 }
 
 bool ManageNotebooksDialog::checkUnsavedChanges()

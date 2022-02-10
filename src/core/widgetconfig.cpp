@@ -31,6 +31,7 @@ void WidgetConfig::init(const QJsonObject &p_app,
 
     {
         m_nodeExplorerViewOrder = READINT(QStringLiteral("node_explorer_view_order"));
+        m_nodeExplorerExploreMode = READINT(QStringLiteral("node_explorer_explore_mode"));
         m_nodeExplorerExternalFilesVisible = READBOOL(QStringLiteral("node_explorer_external_files_visible"));
         m_nodeExplorerAutoImportExternalFilesEnabled = READBOOL(QStringLiteral("node_explorer_auto_import_external_files_enabled"));
         m_nodeExplorerCloseBeforeOpenWithEnabled = READBOOL(QStringLiteral("node_explorer_close_before_open_with_enabled"));
@@ -43,6 +44,8 @@ void WidgetConfig::init(const QJsonObject &p_app,
     m_snippetPanelBuiltInSnippetsVisible = READBOOL(QStringLiteral("snippet_panel_builtin_snippets_visible"));
 
     m_tagExplorerTwoColumnsEnabled = READBOOL(QStringLiteral("tag_explorer_two_columns_enabled"));
+
+    m_newNoteDefaultFileType = READINT(QStringLiteral("new_note_default_file_type"));
 }
 
 QJsonObject WidgetConfig::toJson() const
@@ -54,6 +57,7 @@ QJsonObject WidgetConfig::toJson() const
     obj[QStringLiteral("find_and_replace_options")] = static_cast<int>(m_findAndReplaceOptions);
 
     obj[QStringLiteral("node_explorer_view_order")] = m_nodeExplorerViewOrder;
+    obj[QStringLiteral("node_explorer_explore_mode")] = m_nodeExplorerExploreMode;
     obj[QStringLiteral("node_explorer_external_files_visible")] = m_nodeExplorerExternalFilesVisible;
     obj[QStringLiteral("node_explorer_auto_import_external_files_enabled")] = m_nodeExplorerAutoImportExternalFilesEnabled;
     obj[QStringLiteral("node_explorer_close_before_open_with_enabled")] = m_nodeExplorerCloseBeforeOpenWithEnabled;
@@ -63,6 +67,7 @@ QJsonObject WidgetConfig::toJson() const
     writeStringList(obj,
                     QStringLiteral("main_window_keep_docks_expanding_content_area"),
                     m_mainWindowKeepDocksExpandingContentArea);
+    obj[QStringLiteral("new_note_default_file_type")] = m_newNoteDefaultFileType;
     return obj;
 }
 
@@ -104,6 +109,16 @@ int WidgetConfig::getNodeExplorerViewOrder() const
 void WidgetConfig::setNodeExplorerViewOrder(int p_viewOrder)
 {
     updateConfig(m_nodeExplorerViewOrder, p_viewOrder, this);
+}
+
+int WidgetConfig::getNodeExplorerExploreMode() const
+{
+    return m_nodeExplorerExploreMode;
+}
+
+void WidgetConfig::setNodeExplorerExploreMode(int p_mode)
+{
+    updateConfig(m_nodeExplorerExploreMode, p_mode, this);
 }
 
 bool WidgetConfig::isNodeExplorerExternalFilesVisible() const
@@ -174,4 +189,14 @@ bool WidgetConfig::getTagExplorerTwoColumnsEnabled() const
 void WidgetConfig::setTagExplorerTwoColumnsEnabled(bool p_enabled)
 {
     updateConfig(m_tagExplorerTwoColumnsEnabled, p_enabled, this);
+}
+
+int WidgetConfig::getNewNoteDefaultFileType() const
+{
+    return m_newNoteDefaultFileType;
+}
+
+void WidgetConfig::setNewNoteDefaultFileType(int p_type)
+{
+    updateConfig(m_newNoteDefaultFileType, p_type, this);
 }

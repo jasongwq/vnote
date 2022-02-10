@@ -26,6 +26,8 @@
 #include <core/markdowneditorconfig.h>
 #include <core/fileopenparameters.h>
 #include <core/htmltemplatehelper.h>
+#include <core/exception.h>
+#include <task/taskmgr.h>
 #include "propertydefs.h"
 #include "dialogs/settings/settingsdialog.h"
 #include "dialogs/updater.h"
@@ -259,8 +261,7 @@ QToolBar *ToolBarHelper::setupQuickAccessToolBar(MainWindow *p_win, QToolBar *p_
                                     return;
                                 }
 
-                                emit VNoteX::getInst().openFileRequested(quickAccess.first(),
-                                                                         QSharedPointer<FileOpenParameters>::create());
+                                activateQuickAccess(quickAccess.first());
                             });
         WidgetUtils::addActionShortcut(quickAccessAct,
                                        coreConfig.getShortcut(CoreConfig::Shortcut::QuickAccess));
@@ -273,11 +274,119 @@ QToolBar *ToolBarHelper::setupQuickAccessToolBar(MainWindow *p_win, QToolBar *p_
                             });
         MainWindow::connect(btnMenu, &QMenu::triggered,
                             btnMenu, [](QAction *p_act) {
-                                emit VNoteX::getInst().openFileRequested(p_act->data().toString(),
-                                                                         QSharedPointer<FileOpenParameters>::create());
+                                activateQuickAccess(p_act->data().toString());
                             });
         tb->addWidget(toolBtn);
     }
+
+    return tb;
+}
+
+void ToolBarHelper::setupTaskMenu(QMenu *p_menu)
+{
+    p_menu->clear();
+
+    setupTaskActionMenu(p_menu);
+
+    p_menu->addSeparator();
+
+    const auto &taskMgr = VNoteX::getInst().getTaskMgr();
+    for (const auto &task : taskMgr.getAppTasks()) {
+        addTaskMenu(p_menu, task.data());
+    }
+
+    p_menu->addSeparator();
+
+    for (const auto &task : taskMgr.getUserTasks()) {
+        addTaskMenu(p_menu, task.data());
+    }
+
+    p_menu->addSeparator();
+
+    for (const auto &task : taskMgr.getNotebookTasks()) {
+        addTaskMenu(p_menu, task.data());
+    }
+}
+
+void ToolBarHelper::setupTaskActionMenu(QMenu *p_menu)
+{
+    p_menu->addAction(MainWindow::tr("Add Task"),
+                      p_menu,
+                      []() {
+                          WidgetUtils::openUrlByDesktop(QUrl::fromLocalFile(ConfigMgr::getInst().getUserTaskFolder()));
+                      });
+
+    p_menu->addAction(MainWindow::tr("Reload"),
+                      p_menu,
+                      []() {
+                          VNoteX::getInst().getTaskMgr().reload();
+                      });
+}
+
+void ToolBarHelper::addTaskMenu(QMenu *p_menu, Task *p_task)
+{
+    QAction *action = nullptr;
+
+    const auto &children = p_task->getChildren();
+
+    auto label = p_task->getLabel();
+    // '&' will be considered shortuct symbol in QAction.
+    label.replace("&", "&&");
+
+    if (children.isEmpty()) {
+        action = p_menu->addAction(label);
+    } else {
+        auto subMenu = p_menu->addMenu(label);
+        for (auto task : children) {
+            addTaskMenu(subMenu, task);
+        }
+        action = subMenu->menuAction();
+    }
+
+    QIcon icon;
+    try {
+        auto taskIcon = p_task->getIcon();
+        if (!taskIcon.isEmpty()) {
+            icon = generateIcon(p_task->getIcon());
+        }
+    }  catch (Exception &e) {
+        if (e.m_type != Exception::Type::FailToReadFile) {
+            throw e;
+        }
+    }
+    action->setIcon(icon);
+
+    action->setData(reinterpret_cast<qulonglong>(p_task));
+
+    WidgetUtils::addActionShortcut(action, p_task->getShortcut());
+}
+
+QToolBar *ToolBarHelper::setupTaskToolBar(MainWindow *p_win, QToolBar *p_toolBar)
+{
+    auto tb = p_toolBar;
+    if (!tb) {
+        tb = createToolBar(p_win, MainWindow::tr("Task"), "TaskToolBar");
+    }
+
+    auto act = tb->addAction(generateIcon("task_menu.svg"), MainWindow::tr("Task"));
+    auto btn = dynamic_cast<QToolButton *>(tb->widgetForAction(act));
+    btn->setPopupMode(QToolButton::InstantPopup);
+    btn->setProperty(PropertyDefs::c_toolButtonWithoutMenuIndicator, true);
+
+    auto taskMenu = WidgetsFactory::createMenu(tb);
+    setupTaskActionMenu(taskMenu);
+    btn->setMenu(taskMenu);
+    MainWindow::connect(taskMenu, &QMenu::triggered,
+                        taskMenu, [](QAction *act) {
+        auto task = reinterpret_cast<Task *>(act->data().toULongLong());
+        if (task) {
+            task->run();
+        }
+    });
+    MainWindow::connect(&VNoteX::getInst().getTaskMgr(), &TaskMgr::tasksUpdated,
+                        taskMenu, [taskMenu]() {
+        setupTaskMenu(taskMenu);
+    });
 
     return tb;
 }
@@ -289,278 +398,15 @@ QToolBar *ToolBarHelper::setupSettingsToolBar(MainWindow *p_win, QToolBar *p_too
         tb = createToolBar(p_win, MainWindow::tr("Settings"), "SettingsToolBar");
     }
 
-    // Spacer.
     addSpacer(tb);
 
-    // Expand.
-    {
-        const auto &coreConfig = ConfigMgr::getInst().getCoreConfig();
+    setupExpandButton(p_win, tb);
 
-        auto btn = WidgetsFactory::createToolButton(tb);
+    setupSettingsButton(p_win, tb);
 
-        auto menu = WidgetsFactory::createMenu(tb);
-        btn->setMenu(menu);
-
-        auto expandAct = menu->addAction(generateIcon("expand.svg"),
-                                         MainWindow::tr("Expand Content Area"));
-        WidgetUtils::addActionShortcut(expandAct,
-                                       coreConfig.getShortcut(CoreConfig::Shortcut::ExpandContentArea));
-        expandAct->setCheckable(true);
-        MainWindow::connect(expandAct, &QAction::triggered,
-                            p_win, &MainWindow::setContentAreaExpanded);
-        MainWindow::connect(p_win, &MainWindow::layoutChanged,
-                            [expandAct, p_win]() {
-                                expandAct->setChecked(p_win->isContentAreaExpanded());
-                            });
-        btn->setDefaultAction(expandAct);
-
-        {
-            auto fullScreenAct = new FullScreenToggleAction(p_win,
-                                                            generateIcon("fullscreen.svg"),
-                                                            menu);
-            const auto shortcut = coreConfig.getShortcut(CoreConfig::Shortcut::FullScreen);
-            WidgetUtils::addActionShortcut(fullScreenAct, shortcut);
-            MainWindow::connect(fullScreenAct, &FullScreenToggleAction::fullScreenToggled,
-                                p_win, [shortcut](bool p_fullScreen) {
-                                    if (p_fullScreen) {
-                                        VNoteX::getInst().showTips(
-                                            MainWindow::tr("Press %1 To Exit Full Screen").arg(shortcut));
-                                    } else {
-                                        VNoteX::getInst().showTips("");
-                                    }
-                                });
-            menu->addAction(fullScreenAct);
-        }
-
-        auto stayOnTopAct = menu->addAction(generateIcon("stay_on_top.svg"), MainWindow::tr("Stay on Top"),
-                                            p_win, &MainWindow::setStayOnTop);
-        stayOnTopAct->setCheckable(true);
-        WidgetUtils::addActionShortcut(stayOnTopAct,
-                                       coreConfig.getShortcut(CoreConfig::Shortcut::StayOnTop));
-
-        menu->addSeparator();
-
-        {
-            // Windows.
-            // MainWindow will clear the title of the dock widget for the tab bar, so we need to use
-            // another action to wrap the no-text action.
-            auto subMenu = menu->addMenu(MainWindow::tr("Windows"));
-            for (auto dock : p_win->getDocks()) {
-                // @act is owned by the QDockWidget.
-                auto act = dock->toggleViewAction();
-                auto actWrapper = subMenu->addAction(act->text());
-                actWrapper->setCheckable(act->isCheckable());
-                actWrapper->setChecked(act->isChecked());
-                MainWindow::connect(act, &QAction::toggled,
-                                    actWrapper, [actWrapper](bool checked) {
-                                        if (actWrapper->isChecked() != checked) {
-                                            actWrapper->setChecked(checked);
-                                        }
-                                    });
-                MainWindow::connect(actWrapper, &QAction::triggered,
-                                    act, [p_win, act]() {
-                                        act->trigger();
-                                        p_win->updateDockWidgetTabBar();
-                                    });
-            }
-        }
-
-        tb->addWidget(btn);
-    }
-
-    // Settings.
-    {
-        const auto &coreConfig = ConfigMgr::getInst().getCoreConfig();
-
-        auto act = tb->addAction(generateIcon("settings_menu.svg"), MainWindow::tr("Settings"));
-        auto btn = dynamic_cast<QToolButton *>(tb->widgetForAction(act));
-        Q_ASSERT(btn);
-        btn->setPopupMode(QToolButton::InstantPopup);
-        btn->setProperty(PropertyDefs::c_toolButtonWithoutMenuIndicator, true);
-
-        auto menu = WidgetsFactory::createMenu(tb);
-        btn->setMenu(menu);
-
-        auto settingsAct = menu->addAction(generateIcon("settings.svg"),
-                                           MainWindow::tr("Settings"),
-                                           menu,
-                                           [p_win]() {
-                                               SettingsDialog dialog(p_win);
-                                               dialog.exec();
-                                           });
-        WidgetUtils::addActionShortcut(settingsAct,
-                                       coreConfig.getShortcut(CoreConfig::Shortcut::Settings));
-
-        menu->addSeparator();
-
-        setupConfigurationMenu(menu);
-
-        menu->addSeparator();
-
-        menu->addAction(MainWindow::tr("Reset Main Window Layout"),
-                        menu,
-                        [p_win]() {
-                            p_win->resetStateAndGeometry();
-                        });
-
-        menu->addSeparator();
-
-        menu->addAction(MainWindow::tr("Restart"),
-                        menu,
-                        [p_win]() {
-                            p_win->restart();
-                        });
-
-        auto quitAct = menu->addAction(MainWindow::tr("Quit"),
-                                       menu,
-                                       [p_win]() {
-                                           p_win->quitApp();
-                                       });
-        quitAct->setMenuRole(QAction::QuitRole);
-        WidgetUtils::addActionShortcut(quitAct,
-                                       coreConfig.getShortcut(CoreConfig::Shortcut::Quit));
-    }
-
-    // Help.
-    {
-        auto act = tb->addAction(generateIcon("help_menu.svg"), MainWindow::tr("Help"));
-        auto btn = dynamic_cast<QToolButton *>(tb->widgetForAction(act));
-        Q_ASSERT(btn);
-        btn->setPopupMode(QToolButton::InstantPopup);
-        btn->setProperty(PropertyDefs::c_toolButtonWithoutMenuIndicator, true);
-
-        auto menu = WidgetsFactory::createMenu(tb);
-        btn->setMenu(menu);
-
-        auto whatsThisAct = menu->addAction(generateIcon("whatsthis.svg"),
-                                            MainWindow::tr("What's This?"),
-                                            menu,
-                                            []() {
-                                                QWhatsThis::enterWhatsThisMode();
-                                            });
-        whatsThisAct->setToolTip(MainWindow::tr("Enter WhatsThis mode and click somewhere to show help information"));
-
-        menu->addSeparator();
-
-        menu->addAction(MainWindow::tr("Shortcuts Help"),
-                        menu,
-                        []() {
-                            const auto file = DocsUtils::getDocFile(QStringLiteral("shortcuts.md"));
-                            if (!file.isEmpty()) {
-                                auto paras = QSharedPointer<FileOpenParameters>::create();
-                                paras->m_readOnly = true;
-                                emit VNoteX::getInst().openFileRequested(file, paras);
-                            }
-                        });
-
-        menu->addAction(MainWindow::tr("Markdown Guide"),
-                        menu,
-                        []() {
-                            const auto file = DocsUtils::getDocFile(QStringLiteral("markdown_guide.md"));
-                            if (!file.isEmpty()) {
-                                auto paras = QSharedPointer<FileOpenParameters>::create();
-                                paras->m_readOnly = true;
-                                emit VNoteX::getInst().openFileRequested(file, paras);
-                            }
-                        });
-
-        menu->addSeparator();
-
-        menu->addAction(MainWindow::tr("View Logs"),
-                        menu,
-                        []() {
-                            const auto file = ConfigMgr::getInst().getLogFile();
-                            if (QFileInfo::exists(file)) {
-                                auto paras = QSharedPointer<FileOpenParameters>::create();
-                                paras->m_readOnly = true;
-                                emit VNoteX::getInst().openFileRequested(file, paras);
-                            }
-                        });
-
-        menu->addSeparator();
-
-        menu->addAction(MainWindow::tr("%1 Home Page").arg(qApp->applicationDisplayName()),
-                        menu,
-                        []() {
-                            WidgetUtils::openUrlByDesktop(QUrl("https://vnotex.github.io/vnote"));
-                        });
-
-        menu->addAction(MainWindow::tr("Feedback and Discussions"),
-                        menu,
-                        []() {
-                            WidgetUtils::openUrlByDesktop(QUrl("https://github.com/vnotex/vnote/discussions"));
-                        });
-
-        menu->addSeparator();
-
-        menu->addAction(MainWindow::tr("Check for Updates"),
-                        menu,
-                        [p_win]() {
-                            Updater updater(p_win);
-                            updater.exec();
-                        });
-
-        menu->addAction(MainWindow::tr("About"),
-                        menu,
-                        [p_win]() {
-                            auto info = MainWindow::tr("<h3>%1</h3>\n<span>%2</span>\n").arg(qApp->applicationDisplayName(),
-                                                                                             qApp->applicationVersion());
-                            const auto text = DocsUtils::getDocText(QStringLiteral("about_vnotex.txt"));
-                            QMessageBox::about(p_win, MainWindow::tr("About"), info + text);
-                        });
-
-        auto aboutQtAct = menu->addAction(MainWindow::tr("About Qt"));
-        aboutQtAct->setMenuRole(QAction::AboutQtRole);
-        MainWindow::connect(aboutQtAct, &QAction::triggered,
-                            qApp, &QApplication::aboutQt);
-    }
+    setupMenuButton(p_win, tb);
 
     return tb;
-}
-
-void ToolBarHelper::setupConfigurationMenu(QMenu *p_menu)
-{
-    auto menu = p_menu->addMenu(MainWindow::tr("Configuration"));
-
-    menu->addAction(MainWindow::tr("Edit User Configuration File"),
-                    menu,
-                    []() {
-                        auto file = ConfigMgr::getInst().getConfigFilePath(ConfigMgr::Source::User);
-                        auto paras = QSharedPointer<FileOpenParameters>::create();
-                        paras->m_sessionEnabled = false;
-                        emit VNoteX::getInst().openFileRequested(file, paras);
-                    });
-
-    menu->addAction(MainWindow::tr("Open User Configuration Folder"),
-                    menu,
-                    []() {
-                        auto folderPath = ConfigMgr::getInst().getUserFolder();
-                        WidgetUtils::openUrlByDesktop(QUrl::fromLocalFile(folderPath));
-                    });
-
-    menu->addAction(MainWindow::tr("Open Default Configuration Folder"),
-                    menu,
-                    []() {
-                        auto folderPath = ConfigMgr::getInst().getAppFolder();
-                        WidgetUtils::openUrlByDesktop(QUrl::fromLocalFile(folderPath));
-                    });
-
-    menu->addSeparator();
-
-    auto act = menu->addAction(MainWindow::tr("Edit Markdown User Styles"),
-                               menu,
-                               []() {
-                                   const auto file = ConfigMgr::getInst().getUserMarkdownUserStyleFile();
-                                   auto paras = QSharedPointer<FileOpenParameters>::create();
-                                   paras->m_sessionEnabled = false;
-                                   paras->m_hooks[FileOpenParameters::PostSave] = []() {
-                                       qDebug() << "post save";
-                                       const auto &markdownConfig = ConfigMgr::getInst().getEditorConfig().getMarkdownEditorConfig();
-                                       HtmlTemplateHelper::updateMarkdownViewerTemplate(markdownConfig, true);
-                                   };
-                                   emit VNoteX::getInst().openFileRequested(file, paras);
-                               });
-    act->setStatusTip(MainWindow::tr("Edit the user styles of Markdown editor read mode"));
 }
 
 static const QString c_fgPalette = QStringLiteral("widgets#toolbar#icon#fg");
@@ -607,6 +453,8 @@ void ToolBarHelper::setupToolBars(MainWindow *p_mainWindow)
 
     setupQuickAccessToolBar(p_mainWindow, nullptr);
 
+    setupTaskToolBar(p_mainWindow, nullptr);
+
     setupSettingsToolBar(p_mainWindow, nullptr);
 }
 
@@ -618,6 +466,7 @@ void ToolBarHelper::setupToolBars(MainWindow *p_mainWindow, QToolBar *p_toolBar)
 
     setupFileToolBar(p_mainWindow, p_toolBar);
     setupQuickAccessToolBar(p_mainWindow, p_toolBar);
+    setupTaskToolBar(p_mainWindow, p_toolBar);
     setupSettingsToolBar(p_mainWindow, p_toolBar);
 }
 
@@ -659,4 +508,281 @@ void ToolBarHelper::updateQuickAccessMenu(QMenu *p_menu)
         // Must call after setDefaultWidget().
         p_menu->addAction(act);
     }
+}
+
+void ToolBarHelper::setupExpandButton(MainWindow *p_win, QToolBar *p_toolBar)
+{
+    const auto &coreConfig = ConfigMgr::getInst().getCoreConfig();
+
+    auto btn = WidgetsFactory::createToolButton(p_toolBar);
+
+    auto menu = WidgetsFactory::createMenu(p_toolBar);
+    btn->setMenu(menu);
+
+    auto expandAct = menu->addAction(generateIcon("expand.svg"),
+                                     MainWindow::tr("Expand Content Area"));
+    WidgetUtils::addActionShortcut(expandAct,
+                                   coreConfig.getShortcut(CoreConfig::Shortcut::ExpandContentArea));
+    expandAct->setCheckable(true);
+    MainWindow::connect(expandAct, &QAction::triggered,
+                        p_win, &MainWindow::setContentAreaExpanded);
+    MainWindow::connect(p_win, &MainWindow::layoutChanged,
+                        [expandAct, p_win]() {
+                            expandAct->setChecked(p_win->isContentAreaExpanded());
+                        });
+    btn->setDefaultAction(expandAct);
+
+    {
+        auto fullScreenAct = new FullScreenToggleAction(p_win,
+                                                        generateIcon("fullscreen.svg"),
+                                                        menu);
+        const auto shortcut = coreConfig.getShortcut(CoreConfig::Shortcut::FullScreen);
+        WidgetUtils::addActionShortcut(fullScreenAct, shortcut);
+        MainWindow::connect(fullScreenAct, &FullScreenToggleAction::fullScreenToggled,
+                            p_win, [shortcut](bool p_fullScreen) {
+                                if (p_fullScreen) {
+                                    VNoteX::getInst().showTips(
+                                        MainWindow::tr("Press %1 To Exit Full Screen").arg(shortcut));
+                                } else {
+                                    VNoteX::getInst().showTips("");
+                                }
+                            });
+        menu->addAction(fullScreenAct);
+    }
+
+    auto stayOnTopAct = menu->addAction(generateIcon("stay_on_top.svg"), MainWindow::tr("Stay on Top"),
+                                        p_win, &MainWindow::setStayOnTop);
+    stayOnTopAct->setCheckable(true);
+    WidgetUtils::addActionShortcut(stayOnTopAct,
+                                   coreConfig.getShortcut(CoreConfig::Shortcut::StayOnTop));
+
+    menu->addSeparator();
+
+    {
+        // Windows.
+        // MainWindow will clear the title of the dock widget for the tab bar, so we need to use
+        // another action to wrap the no-text action.
+        auto subMenu = menu->addMenu(MainWindow::tr("Windows"));
+        for (auto dock : p_win->getDocks()) {
+            // @act is owned by the QDockWidget.
+            auto act = dock->toggleViewAction();
+            auto actWrapper = subMenu->addAction(act->text());
+            actWrapper->setCheckable(act->isCheckable());
+            actWrapper->setChecked(act->isChecked());
+            MainWindow::connect(act, &QAction::toggled,
+                                actWrapper, [actWrapper](bool checked) {
+                                    if (actWrapper->isChecked() != checked) {
+                                        actWrapper->setChecked(checked);
+                                    }
+                                });
+            MainWindow::connect(actWrapper, &QAction::triggered,
+                                act, [p_win, act]() {
+                                    act->trigger();
+                                    p_win->updateDockWidgetTabBar();
+                                });
+        }
+    }
+
+    p_toolBar->addWidget(btn);
+}
+
+void ToolBarHelper::setupSettingsButton(MainWindow *p_win, QToolBar *p_toolBar)
+{
+    const auto &coreConfig = ConfigMgr::getInst().getCoreConfig();
+
+    auto act = p_toolBar->addAction(generateIcon("settings_menu.svg"), MainWindow::tr("Settings"));
+    auto btn = dynamic_cast<QToolButton *>(p_toolBar->widgetForAction(act));
+    Q_ASSERT(btn);
+    btn->setPopupMode(QToolButton::InstantPopup);
+    btn->setProperty(PropertyDefs::c_toolButtonWithoutMenuIndicator, true);
+
+    auto menu = WidgetsFactory::createMenu(p_toolBar);
+    btn->setMenu(menu);
+
+    auto settingsAct = menu->addAction(MainWindow::tr("Settings"),
+                                       menu,
+                                       [p_win]() {
+                                           SettingsDialog dialog(p_win);
+                                           dialog.exec();
+                                       });
+    WidgetUtils::addActionShortcut(settingsAct,
+                                   coreConfig.getShortcut(CoreConfig::Shortcut::Settings));
+
+    menu->addSeparator();
+
+    menu->addAction(MainWindow::tr("Edit User Configuration File"),
+                    menu,
+                    []() {
+                        auto file = ConfigMgr::getInst().getConfigFilePath(ConfigMgr::Source::User);
+                        auto paras = QSharedPointer<FileOpenParameters>::create();
+                        paras->m_sessionEnabled = false;
+                        emit VNoteX::getInst().openFileRequested(file, paras);
+                    });
+
+    menu->addAction(MainWindow::tr("Open User Configuration Folder"),
+                    menu,
+                    []() {
+                        auto folderPath = ConfigMgr::getInst().getUserFolder();
+                        WidgetUtils::openUrlByDesktop(QUrl::fromLocalFile(folderPath));
+                    });
+
+    menu->addAction(MainWindow::tr("Open Default Configuration Folder"),
+                    menu,
+                    []() {
+                        auto folderPath = ConfigMgr::getInst().getAppFolder();
+                        WidgetUtils::openUrlByDesktop(QUrl::fromLocalFile(folderPath));
+                    });
+
+    menu->addSeparator();
+
+    {
+        auto act = menu->addAction(MainWindow::tr("Edit Markdown User Styles"),
+                                   menu,
+                                   []() {
+                                       const auto file = ConfigMgr::getInst().getUserMarkdownUserStyleFile();
+                                       auto paras = QSharedPointer<FileOpenParameters>::create();
+                                       paras->m_sessionEnabled = false;
+                                       paras->m_hooks[FileOpenParameters::PostSave] = []() {
+                                           qDebug() << "post save";
+                                           const auto &markdownConfig = ConfigMgr::getInst().getEditorConfig().getMarkdownEditorConfig();
+                                           HtmlTemplateHelper::updateMarkdownViewerTemplate(markdownConfig, true);
+                                       };
+                                       emit VNoteX::getInst().openFileRequested(file, paras);
+                                   });
+        act->setStatusTip(MainWindow::tr("Edit the user styles of Markdown editor read mode"));
+    }
+
+    menu->addSeparator();
+
+    menu->addAction(MainWindow::tr("Reset Main Window Layout"),
+                    menu,
+                    [p_win]() {
+                        p_win->resetStateAndGeometry();
+                    });
+}
+
+void ToolBarHelper::setupMenuButton(MainWindow *p_win, QToolBar *p_toolBar)
+{
+    const auto &coreConfig = ConfigMgr::getInst().getCoreConfig();
+
+    auto act = p_toolBar->addAction(generateIcon("menu.svg"), MainWindow::tr("Menu"));
+    auto btn = dynamic_cast<QToolButton *>(p_toolBar->widgetForAction(act));
+    Q_ASSERT(btn);
+    btn->setPopupMode(QToolButton::InstantPopup);
+    btn->setProperty(PropertyDefs::c_toolButtonWithoutMenuIndicator, true);
+
+    auto menu = WidgetsFactory::createMenu(p_toolBar);
+    btn->setMenu(menu);
+
+    menu->addAction(MainWindow::tr("View Logs"),
+                    menu,
+                    []() {
+                        const auto file = ConfigMgr::getInst().getLogFile();
+                        if (QFileInfo::exists(file)) {
+                            auto paras = QSharedPointer<FileOpenParameters>::create();
+                            paras->m_readOnly = true;
+                            paras->m_sessionEnabled = false;
+                            emit VNoteX::getInst().openFileRequested(file, paras);
+                        }
+                    });
+
+    {
+        menu->addSeparator();
+
+        menu->addAction(MainWindow::tr("Shortcuts Help"),
+                        menu,
+                        []() {
+                            const auto file = DocsUtils::getDocFile(QStringLiteral("shortcuts.md"));
+                            if (!file.isEmpty()) {
+                                auto paras = QSharedPointer<FileOpenParameters>::create();
+                                paras->m_readOnly = true;
+                                paras->m_sessionEnabled = false;
+                                emit VNoteX::getInst().openFileRequested(file, paras);
+                            }
+                        });
+
+        menu->addAction(MainWindow::tr("Markdown Guide"),
+                        menu,
+                        []() {
+                            const auto file = DocsUtils::getDocFile(QStringLiteral("markdown_guide.md"));
+                            if (!file.isEmpty()) {
+                                auto paras = QSharedPointer<FileOpenParameters>::create();
+                                paras->m_readOnly = true;
+                                paras->m_sessionEnabled = false;
+                                emit VNoteX::getInst().openFileRequested(file, paras);
+                            }
+                        });
+
+        auto helpMenu = menu->addMenu(MainWindow::tr("Help"));
+
+        helpMenu->addAction(MainWindow::tr("Home Page"),
+                            helpMenu,
+                            []() {
+                                WidgetUtils::openUrlByDesktop(QUrl("https://vnotex.github.io/vnote"));
+                            });
+
+        helpMenu->addAction(MainWindow::tr("Documentation"),
+                            helpMenu,
+                            []() {
+                                WidgetUtils::openUrlByDesktop(QUrl("https://vnotex.github.io/vnote/en_us/#!docs/vx.json"));
+                            });
+
+        helpMenu->addAction(MainWindow::tr("Feedback and Discussions"),
+                            helpMenu,
+                            []() {
+                                WidgetUtils::openUrlByDesktop(QUrl("https://github.com/vnotex/vnote/discussions"));
+                            });
+
+        helpMenu->addSeparator();
+
+        helpMenu->addAction(MainWindow::tr("Contributors"),
+                            helpMenu,
+                            []() {
+                                WidgetUtils::openUrlByDesktop(QUrl("https://github.com/vnotex/vnote/graphs/contributors"));
+                            });
+
+        helpMenu->addAction(MainWindow::tr("About"),
+                            helpMenu,
+                            [p_win]() {
+                                auto info = MainWindow::tr("<h3>%1</h3>\n<span>%2</span>\n").arg(qApp->applicationDisplayName(),
+                                                                                                 qApp->applicationVersion());
+                                const auto text = DocsUtils::getDocText(QStringLiteral("about_vnotex.txt"));
+                                QMessageBox::about(p_win, MainWindow::tr("About"), info + text);
+                            });
+
+        auto aboutQtAct = helpMenu->addAction(MainWindow::tr("About Qt"));
+        aboutQtAct->setMenuRole(QAction::AboutQtRole);
+        MainWindow::connect(aboutQtAct, &QAction::triggered,
+                            qApp, &QApplication::aboutQt);
+    }
+
+    menu->addSeparator();
+
+    menu->addAction(MainWindow::tr("Check for Updates"),
+                    menu,
+                    [p_win]() {
+                        Updater updater(p_win);
+                        updater.exec();
+                    });
+
+
+    menu->addAction(MainWindow::tr("Restart"),
+                    menu,
+                    [p_win]() {
+                        p_win->restart();
+                    });
+
+    auto quitAct = menu->addAction(MainWindow::tr("Quit"),
+                                   menu,
+                                   [p_win]() {
+                                       p_win->quitApp();
+                                   });
+    quitAct->setMenuRole(QAction::QuitRole);
+    WidgetUtils::addActionShortcut(quitAct,
+                                   coreConfig.getShortcut(CoreConfig::Shortcut::Quit));
+}
+
+void ToolBarHelper::activateQuickAccess(const QString &p_file)
+{
+    emit VNoteX::getInst().openFileRequested(p_file, QSharedPointer<FileOpenParameters>::create());
 }

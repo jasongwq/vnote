@@ -164,7 +164,7 @@ class MarkdownIt extends VxWorker {
 
         this.mdit.use(window['markdown-it-imsize.js']);
 
-        this.mdit.use(texmath, { delimiters: ['dollars', 'raw'] });
+        this.mdit.use(texmath, { delimitersList: ['dollars', 'raw'] });
 
         // Support '::: alert-xxx \n contents \n :::\n'.
         this.mdit.use(window.markdownitContainer, 'alert', {
@@ -293,7 +293,7 @@ class MarkdownIt extends VxWorker {
         }
         // Add 1x1 transparent GIF image at the end to monitor the load process.
         return '<img src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" onload="'
-               + p_cbStr + ' this.parentNode.removeChild(this);">';
+               + p_cbStr + ' try { this.parentNode.removeChild(this); } catch(error) { console.log(error); }">';
     }
 
     addLangsToSkipHighlight(p_langs) {

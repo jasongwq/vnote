@@ -254,7 +254,8 @@ bool FileUtils::isText(const QString &p_filePath)
 {
     QMimeDatabase mimeDatabase;
     auto mimeType = mimeDatabase.mimeTypeForFile(p_filePath);
-    if (mimeType.name().startsWith(QStringLiteral("text/"))) {
+    const auto name = mimeType.name();
+    if (name.startsWith(QStringLiteral("text/")) || name == QStringLiteral("application/x-zerosize")) {
         return true;
     }
 
@@ -345,7 +346,6 @@ QString FileUtils::generateFileNameWithSequence(const QString &p_folderPath,
 void FileUtils::removeEmptyDir(const QString &p_dirPath)
 {
     QDir dir(p_dirPath);
-    qDebug() << "removeEmptyDir" << p_dirPath << dir.isEmpty();
     if (dir.isEmpty()) {
         return;
     }
@@ -356,4 +356,29 @@ void FileUtils::removeEmptyDir(const QString &p_dirPath)
         removeEmptyDir(childPath);
         removeDirIfEmpty(childPath);
     }
+}
+
+QStringList FileUtils::entryListRecursively(const QString &p_dirPath,
+                                            const QStringList &p_nameFilters,
+                                            QDir::Filters p_filters)
+{
+    QStringList entries;
+
+    QDir dir(p_dirPath);
+    if (!dir.exists()) {
+        return entries;
+    }
+
+    const auto curEntries = dir.entryList(p_nameFilters, p_filters | QDir::NoDotAndDotDot);
+    for (const auto &e : curEntries) {
+        entries.append(PathUtils::concatenateFilePath(p_dirPath, e));
+    }
+
+    const auto subdirs = dir.entryList(QDir::AllDirs | QDir::NoDotAndDotDot);
+    for (const auto &subdir : subdirs) {
+        const auto dirPath = PathUtils::concatenateFilePath(p_dirPath, subdir);
+        entries.append(entryListRecursively(dirPath, p_nameFilters, p_filters));
+    }
+
+    return entries;
 }

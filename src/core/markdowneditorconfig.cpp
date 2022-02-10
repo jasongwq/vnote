@@ -39,6 +39,8 @@ void MarkdownEditorConfig::init(const QJsonObject &p_app, const QJsonObject &p_u
 
     m_graphvizExe = READSTR(QStringLiteral("graphviz_exe"));
 
+    m_mathJaxScript = READSTR(QStringLiteral("mathjax_script"));
+
     m_prependDotInRelativeLink = READBOOL(QStringLiteral("prepend_dot_in_relative_link"));
     m_confirmBeforeClearObsoleteImages = READBOOL(QStringLiteral("confirm_before_clear_obsolete_images"));
     m_insertFileNameAsTitle = READBOOL(QStringLiteral("insert_file_name_as_title"));
@@ -58,6 +60,7 @@ void MarkdownEditorConfig::init(const QJsonObject &p_app, const QJsonObject &p_u
     m_autoBreakEnabled = READBOOL(QStringLiteral("auto_break"));
     m_linkifyEnabled = READBOOL(QStringLiteral("linkify"));
     m_indentFirstLineEnabled = READBOOL(QStringLiteral("indent_first_line"));
+    m_codeBlockLineNumberEnabled = READBOOL(QStringLiteral("code_block_line_number"));
 
     m_smartTableEnabled = READBOOL(QStringLiteral("smart_table"));
     m_smartTableInterval = READINT(QStringLiteral("smart_table_interval"));
@@ -73,6 +76,8 @@ void MarkdownEditorConfig::init(const QJsonObject &p_app, const QJsonObject &p_u
             m_inplacePreviewSources |= stringToInplacePreviewSource(src);
         }
     }
+
+    m_editViewMode = stringToEditViewMode(READSTR(QStringLiteral("edit_view_mode")));
 }
 
 QJsonObject MarkdownEditorConfig::toJson() const
@@ -85,6 +90,7 @@ QJsonObject MarkdownEditorConfig::toJson() const
     obj[QStringLiteral("plantuml_command")] = m_plantUmlCommand;
     obj[QStringLiteral("web_graphviz")] = m_webGraphviz;
     obj[QStringLiteral("graphviz_exe")] = m_graphvizExe;
+    obj[QStringLiteral("mathjax_script")] = m_mathJaxScript;
     obj[QStringLiteral("prepend_dot_in_relative_link")] = m_prependDotInRelativeLink;
     obj[QStringLiteral("confirm_before_clear_obsolete_images")] = m_confirmBeforeClearObsoleteImages;
     obj[QStringLiteral("insert_file_name_as_title")] = m_insertFileNameAsTitle;
@@ -103,6 +109,7 @@ QJsonObject MarkdownEditorConfig::toJson() const
     obj[QStringLiteral("auto_break")] = m_autoBreakEnabled;
     obj[QStringLiteral("linkify")] = m_linkifyEnabled;
     obj[QStringLiteral("indent_first_line")] = m_indentFirstLineEnabled;
+    obj[QStringLiteral("code_block_line_number")] = m_codeBlockLineNumberEnabled;
     obj[QStringLiteral("smart_table")] = m_smartTableEnabled;
     obj[QStringLiteral("smart_table_interval")] = m_smartTableInterval;
     obj[QStringLiteral("spell_check")] = m_spellCheckEnabled;
@@ -121,6 +128,8 @@ QJsonObject MarkdownEditorConfig::toJson() const
         }
         obj[QStringLiteral("inplace_preview_sources")] = srcs.join(QLatin1Char(';'));
     }
+
+    obj[QStringLiteral("edit_view_mode")] = editViewModeToString(m_editViewMode);
 
     return obj;
 }
@@ -245,6 +254,16 @@ void MarkdownEditorConfig::setGraphvizExe(const QString &p_exe)
     updateConfig(m_graphvizExe, p_exe, this);
 }
 
+const QString &MarkdownEditorConfig::getMathJaxScript() const
+{
+    return m_mathJaxScript;
+}
+
+void MarkdownEditorConfig::setMathJaxScript(const QString &p_script)
+{
+    updateConfig(m_mathJaxScript, p_script, this);
+}
+
 bool MarkdownEditorConfig::getPrependDotInRelativeLink() const
 {
     return m_prependDotInRelativeLink;
@@ -365,6 +384,16 @@ bool MarkdownEditorConfig::getIndentFirstLineEnabled() const
 void MarkdownEditorConfig::setIndentFirstLineEnabled(bool p_enabled)
 {
     updateConfig(m_indentFirstLineEnabled, p_enabled, this);
+}
+
+bool MarkdownEditorConfig::getCodeBlockLineNumberEnabled() const
+{
+    return m_codeBlockLineNumberEnabled;
+}
+
+void MarkdownEditorConfig::setCodeBlockLineNumberEnabled(bool p_enabled)
+{
+    updateConfig(m_codeBlockLineNumberEnabled, p_enabled, this);
 }
 
 QString MarkdownEditorConfig::sectionNumberModeToString(SectionNumberMode p_mode) const
@@ -518,4 +547,35 @@ MarkdownEditorConfig::InplacePreviewSources MarkdownEditorConfig::getInplacePrev
 void MarkdownEditorConfig::setInplacePreviewSources(InplacePreviewSources p_src)
 {
     updateConfig(m_inplacePreviewSources, p_src, this);
+}
+
+QString MarkdownEditorConfig::editViewModeToString(EditViewMode p_mode) const
+{
+    switch (p_mode) {
+    case EditViewMode::EditPreview:
+        return QStringLiteral("editpreview");
+
+    default:
+        return QStringLiteral("editonly");
+    }
+}
+
+MarkdownEditorConfig::EditViewMode MarkdownEditorConfig::stringToEditViewMode(const QString &p_str) const
+{
+    auto mode = p_str.toLower();
+    if (mode == QStringLiteral("editpreview")) {
+        return EditViewMode::EditPreview;
+    } else {
+        return EditViewMode::EditOnly;
+    }
+}
+
+MarkdownEditorConfig::EditViewMode MarkdownEditorConfig::getEditViewMode() const
+{
+    return m_editViewMode;
+}
+
+void MarkdownEditorConfig::setEditViewMode(EditViewMode p_mode)
+{
+    updateConfig(m_editViewMode, p_mode, this);
 }

@@ -56,6 +56,7 @@
 #include "tagexplorer.h"
 #include "toolbarhelper.h"
 #include "statusbarhelper.h"
+#include "consoleviewer.h"
 
 using namespace vnotex;
 
@@ -257,6 +258,8 @@ void MainWindow::setupDocks()
 
     setupOutlineViewer();
 
+    setupConsoleViewer();
+
     setupHistoryPanel();
 
     setupSearchPanel();
@@ -380,7 +383,11 @@ void MainWindow::closeEvent(QCloseEvent *p_event)
         // Avoid geometry corruption caused by fullscreen or minimized window.
         const auto state = windowState();
         if (state & (Qt::WindowMinimized | Qt::WindowFullScreen)) {
-            showNormal();
+            if (m_windowOldState & Qt::WindowMaximized) {
+                showMaximized();
+            } else {
+                showNormal();
+            }
         }
         saveStateAndGeometry();
     }
@@ -420,6 +427,7 @@ void MainWindow::saveStateAndGeometry()
     sg.m_mainGeometry = saveGeometry();
     sg.m_visibleDocksBeforeExpand = m_visibleDocksBeforeExpand;
     sg.m_tagExplorerState = m_tagExplorer->saveState();
+    sg.m_notebookExplorerState = m_notebookExplorer->saveState();
 
     auto& sessionConfig = ConfigMgr::getInst().getSessionConfig();
     sessionConfig.setMainWindowStateGeometry(sg);
@@ -449,6 +457,10 @@ void MainWindow::loadStateAndGeometry(bool p_stateOnly)
 
     if (!sg.m_tagExplorerState.isEmpty()) {
         m_tagExplorer->restoreState(sg.m_tagExplorerState);
+    }
+
+    if (!sg.m_notebookExplorerState.isEmpty()) {
+        m_notebookExplorer->restoreState(sg.m_notebookExplorerState);
     }
 }
 
@@ -512,9 +524,26 @@ void MainWindow::setupOutlineViewer()
             this, &MainWindow::focusViewArea);
 }
 
+void MainWindow::setupConsoleViewer()
+{
+    m_consoleViewer = new ConsoleViewer(this);
+    m_consoleViewer->setObjectName("ConsoleViewer.vnotex");
+
+    connect(&VNoteX::getInst(), &VNoteX::showOutputRequested,
+            this, [this](const QString &p_text) {
+        m_consoleViewer->append(p_text);
+        m_dockWidgetHelper.activateDock(DockWidgetHelper::ConsoleDock);
+    });
+}
+
 const QVector<QDockWidget *> &MainWindow::getDocks() const
 {
     return m_dockWidgetHelper.getDocks();
+}
+
+ViewArea *MainWindow::getViewArea() const
+{
+    return m_viewArea;
 }
 
 void MainWindow::focusViewArea()
@@ -525,11 +554,10 @@ void MainWindow::focusViewArea()
 void MainWindow::setupToolBar()
 {
     const int sz = ConfigMgr::getInst().getCoreConfig().getToolBarIconSize();
-    const QSize iconSize(sz, sz);
 
     if (isFrameless()) {
         auto toolBar = new TitleToolBar(tr("Global"), this);
-        toolBar->setIconSize(iconSize);
+        toolBar->setIconSize(QSize(sz + 4, sz + 4));
         ToolBarHelper::setupToolBars(this, toolBar);
         toolBar->addTitleBarIcons(ToolBarHelper::generateIcon(QStringLiteral("minimize.svg")),
                                   ToolBarHelper::generateIcon(QStringLiteral("maximize.svg")),
@@ -540,7 +568,7 @@ void MainWindow::setupToolBar()
                 toolBar, &TitleToolBar::updateMaximizeAct);
     } else {
         auto toolBar = new QToolBar(tr("Global"), this);
-        toolBar->setIconSize(iconSize);
+        toolBar->setIconSize(QSize(sz, sz));
         ToolBarHelper::setupToolBars(this, toolBar);
     }
 
@@ -571,6 +599,8 @@ void MainWindow::setStayOnTop(bool p_enabled)
     } else {
         setWindowFlags(flags ^ magicFlag);
     }
+
+    setWindowFlagsOnUpdate();
 
     if (shown) {
         show();

@@ -56,6 +56,13 @@ QJsonObject SessionConfig::ExternalProgram::toJson() const
     return jobj;
 }
 
+QString SessionConfig::ExternalProgram::fetchCommand(const QString &p_file) const
+{
+    auto command(m_command);
+    command.replace(QStringLiteral("%1"), QString("\"%1\"").arg(p_file));
+    return command;
+}
+
 SessionConfig::SessionConfig(ConfigMgr *p_mgr)
     : IConfig(p_mgr, nullptr)
 {
@@ -222,6 +229,7 @@ QJsonObject SessionConfig::saveStateAndGeometry() const
     writeByteArray(obj, QStringLiteral("main_window_geometry"), m_mainWindowStateGeometry.m_mainGeometry);
     writeStringList(obj, QStringLiteral("visible_docks_before_expand"), m_mainWindowStateGeometry.m_visibleDocksBeforeExpand);
     writeByteArray(obj, QStringLiteral("tag_explorer_state"), m_mainWindowStateGeometry.m_tagExplorerState);
+    writeByteArray(obj, QStringLiteral("notebook_explorer_state"), m_mainWindowStateGeometry.m_notebookExplorerState);
     return obj;
 }
 
@@ -353,6 +361,7 @@ void SessionConfig::loadStateAndGeometry(const QJsonObject &p_session)
     m_mainWindowStateGeometry.m_mainGeometry = readByteArray(obj, QStringLiteral("main_window_geometry"));
     m_mainWindowStateGeometry.m_visibleDocksBeforeExpand = readStringList(obj, QStringLiteral("visible_docks_before_expand"));
     m_mainWindowStateGeometry.m_tagExplorerState = readByteArray(obj, QStringLiteral("tag_explorer_state"));
+    m_mainWindowStateGeometry.m_notebookExplorerState = readByteArray(obj, QStringLiteral("notebook_explorer_state"));
 }
 
 QByteArray SessionConfig::getViewAreaSessionAndClear()
@@ -434,6 +443,16 @@ QJsonArray SessionConfig::saveExternalPrograms() const
 const QVector<SessionConfig::ExternalProgram> &SessionConfig::getExternalPrograms() const
 {
     return m_externalPrograms;
+}
+
+const SessionConfig::ExternalProgram *SessionConfig::findExternalProgram(const QString &p_name) const
+{
+    for (const auto &pro : m_externalPrograms) {
+        if (pro.m_name == p_name) {
+            return &pro;
+        }
+    }
+    return nullptr;
 }
 
 const QVector<HistoryItem> &SessionConfig::getHistory() const

@@ -1,4 +1,53 @@
 # Changes
+## v3.12.888
+* Fix shortcuts in key sequence with input method (like `Ctrl+G, E`)
+* Add line ending settings for config files
+* FindAndReplace: fix zero-length search
+* QuickAccess: support folders
+* Upgrade to Qt 5.15.2
+* Support file associations
+* NewNoteDialog: remember default file type
+
+## v3.12.0
+* NotebookExplorer: support separate node explorer
+* Theme: add user-provided VSCode-Dark theme
+* MarkdownEditor: use web to highlight code blocks
+* MarkdownViewWindow
+    * Add switch for code block line number
+    * Fix ParseToMarkdown `<style>` issue
+    * Add config for overridding MathJax script
+* SortDialog: fix sorting issue of date
+* FramelessMainWindow: fix StayOnTop issue
+
+## v3.11.0
+* Task: support a simple task system (@tootal)
+* Theme: add user-provided Solarized-Dark and Solarized-Light themes
+* Export: fix wkhtmltopdf table-of-contents translation
+* Support equation begin in MathJax
+* MainWindow: decide DPI on the screen vnote starts
+* Settings: support searching
+* Fix crash caused by Youdao Dict
+
+## v3.10.1
+* MarkdownEditor: fix view mode issue
+* Support print
+* Refine icons
+
+## v3.10.0
+* MarkdownEditor
+    * Support side-by-side edit with preview
+    * Support config for highlighting whitespace
+* Tag: fix input method issue on macOS
+
+## v3.9.0
+* Remove recycle bin node (now recycle bin is just a simple folder)
+* Quick Access: support removing items directly
+* MarkdownEditor
+    * Support centering images in read mode
+    * Add user.css for user styles in read mode
+    * Add debugger by F12
+    * Support context-sensitive context menu for images and links
+
 ## v3.8.0
 * Support tags
 * Introduce notebook database using SQLITE

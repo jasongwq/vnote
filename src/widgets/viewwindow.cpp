@@ -37,6 +37,7 @@
 #include "editors/statuswidget.h"
 #include "propertydefs.h"
 #include "floatingwidget.h"
+#include "widgetsfactory.h"
 
 using namespace vnotex;
 
@@ -341,6 +342,25 @@ QAction *ViewWindow::addAction(QToolBar *p_toolBar, ViewWindowToolBarHelper::Act
         break;
     }
 
+    case ViewWindowToolBarHelper::ViewMode:
+    {
+        act = ViewWindowToolBarHelper::addAction(p_toolBar, p_action);
+        connect(this, &ViewWindow::bufferChanged,
+                this, [this, act]() {
+                    act->setEnabled(getBuffer());
+                });
+
+        auto toolBtn = dynamic_cast<QToolButton *>(p_toolBar->widgetForAction(act));
+        Q_ASSERT(toolBtn);
+        auto menu = WidgetsFactory::createMenu(p_toolBar);
+        toolBtn->setMenu(menu);
+        connect(menu, &QMenu::aboutToShow,
+                this, [this, menu]() {
+                    updateViewModeMenu(menu);
+                });
+        break;
+    }
+
     case ViewWindowToolBarHelper::TypeHeading:
     {
         act = ViewWindowToolBarHelper::addAction(p_toolBar, p_action);
@@ -516,6 +536,14 @@ QAction *ViewWindow::addAction(QToolBar *p_toolBar, ViewWindowToolBarHelper::Act
         break;
     }
 
+    case ViewWindowToolBarHelper::Print:
+    {
+        act = ViewWindowToolBarHelper::addAction(p_toolBar, p_action);
+        connect(act, &QAction::triggered,
+                this, &ViewWindow::print);
+        break;
+    }
+
     default:
         Q_ASSERT(false);
         break;
@@ -675,7 +703,7 @@ void ViewWindow::discardChangesAndRead()
 
 bool ViewWindow::inModeCanInsert() const
 {
-    return m_mode == ViewWindowMode::Edit || m_mode == ViewWindowMode::FocusPreview || m_mode == ViewWindowMode::FullPreview;
+    return m_mode == ViewWindowMode::Edit;
 }
 
 void ViewWindow::handleTypeAction(TypeAction p_action)
@@ -1134,9 +1162,13 @@ void ViewWindow::replaceAll(const QString &p_text, FindOptions p_options, const 
 
 void ViewWindow::showFindResult(const QStringList &p_texts, int p_totalMatches, int p_currentMatchIndex)
 {
+    if (p_texts.isEmpty() || p_texts[0].isEmpty()) {
+        showMessage(QString());
+        return;
+    }
+
     if (p_totalMatches == 0) {
-        showMessage(tr("Pattern not found: %1%2").arg(p_texts.isEmpty() ? QString() : p_texts[0],
-                                                      p_texts.size() > 1 ? tr(" [+]"): QString()));
+        showMessage(tr("Pattern not found: %1").arg(p_texts.join(QStringLiteral("; "))));
     } else {
         showMessage(tr("Match found: %1/%2").arg(p_currentMatchIndex + 1).arg(p_totalMatches));
     }
@@ -1298,5 +1330,18 @@ bool ViewWindow::isSessionEnabled() const
 
 void ViewWindow::toggleDebug()
 {
-    qDebug() << "debug is not supported";
+    qWarning() << "debug is not supported";
+}
+
+void ViewWindow::updateViewModeMenu(QMenu *p_menu)
+{
+    p_menu->clear();
+
+    auto act = p_menu->addAction(tr("View Mode Not Supported"));
+    act->setEnabled(false);
+}
+
+void ViewWindow::print()
+{
+    qWarning() << "print is not supported";
 }

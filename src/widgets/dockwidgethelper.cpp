@@ -6,6 +6,7 @@
 #include <QHelpEvent>
 #include <QToolTip>
 #include <QShortcut>
+#include <QTextEdit>
 
 #include <core/vnotex.h>
 #include <core/thememgr.h>
@@ -24,6 +25,7 @@
 #include "snippetpanel.h"
 #include "historypanel.h"
 #include "tagexplorer.h"
+#include "consoleviewer.h"
 
 using namespace vnotex;
 
@@ -77,6 +79,8 @@ QString DockWidgetHelper::iconFileName(DockIndex p_dockIndex)
         return "snippet_dock.svg";
     case DockIndex::LocationListDock:
         return "location_list_dock.svg";
+    case DockIndex::ConsoleDock:
+        return "console_dock.svg";
     default:
         return QString();
     }
@@ -112,6 +116,8 @@ void DockWidgetHelper::setupDocks()
 
     setupOutlineDock();
 
+    setupConsoleDock();
+
     setupLocationListDock();
 
     setupShortcuts();
@@ -143,6 +149,19 @@ void DockWidgetHelper::setupOutlineDock()
     dock->setWidget(m_mainWindow->m_outlineViewer);
     dock->setFocusProxy(m_mainWindow->m_outlineViewer);
     m_mainWindow->addDockWidget(Qt::RightDockWidgetArea, dock);
+}
+
+void DockWidgetHelper::setupConsoleDock()
+{
+    auto dock = createDockWidget(DockIndex::ConsoleDock, tr("Console"), m_mainWindow);
+
+    dock->setObjectName(QStringLiteral("ConsoleDock.vnotex"));
+    dock->setAllowedAreas(Qt::AllDockWidgetAreas);
+
+    dock->setWidget(m_mainWindow->m_consoleViewer);
+    dock->setFocusProxy(m_mainWindow->m_consoleViewer);
+    m_mainWindow->addDockWidget(Qt::BottomDockWidgetArea, dock);
+    dock->hide();
 }
 
 void DockWidgetHelper::setupSearchDock()
@@ -224,6 +243,8 @@ void DockWidgetHelper::activateDock(DockIndex p_dockIndex)
 
 void DockWidgetHelper::activateDock(QDockWidget *p_dock)
 {
+    bool needUpdateTabBar = !p_dock->isVisible();
+
     p_dock->show();
     Q_FOREACH(QTabBar* tabBar, m_mainWindow->findChildren<QTabBar*>(QString(), Qt::FindDirectChildrenOnly)) {
         bool found = false;
@@ -239,7 +260,12 @@ void DockWidgetHelper::activateDock(QDockWidget *p_dock)
             break;
         }
     }
+
     p_dock->setFocus();
+
+    if (needUpdateTabBar) {
+        updateDockWidgetTabBar();
+    }
 }
 
 const QVector<QDockWidget *> &DockWidgetHelper::getDocks() const

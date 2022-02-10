@@ -3,6 +3,7 @@ SOURCES += \
     $$PWD/attachmentpopup.cpp \
     $$PWD/biaction.cpp \
     $$PWD/combobox.cpp \
+    $$PWD/consoleviewer.cpp \
     $$PWD/dialogs/dialog.cpp \
     $$PWD/dialogs/exportdialog.cpp \
     $$PWD/dialogs/filepropertiesdialog.cpp \
@@ -21,6 +22,7 @@ SOURCES += \
     $$PWD/dialogs/selectionitemwidget.cpp \
     $$PWD/dialogs/settings/appearancepage.cpp \
     $$PWD/dialogs/settings/editorpage.cpp \
+    $$PWD/dialogs/settings/fileassociationpage.cpp \
     $$PWD/dialogs/settings/generalpage.cpp \
     $$PWD/dialogs/settings/imagehostpage.cpp \
     $$PWD/dialogs/settings/markdowneditorpage.cpp \
@@ -129,6 +131,7 @@ HEADERS += \
     $$PWD/attachmentpopup.h \
     $$PWD/biaction.h \
     $$PWD/combobox.h \
+    $$PWD/consoleviewer.h \
     $$PWD/dialogs/dialog.h \
     $$PWD/dialogs/exportdialog.h \
     $$PWD/dialogs/importfolderutils.h \
@@ -148,6 +151,7 @@ HEADERS += \
     $$PWD/dialogs/selectionitemwidget.h \
     $$PWD/dialogs/settings/appearancepage.h \
     $$PWD/dialogs/settings/editorpage.h \
+    $$PWD/dialogs/settings/fileassociationpage.h \
     $$PWD/dialogs/settings/generalpage.h \
     $$PWD/dialogs/settings/imagehostpage.h \
     $$PWD/dialogs/settings/markdowneditorpage.h \

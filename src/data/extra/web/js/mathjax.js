@@ -56,6 +56,10 @@ class MathJaxRenderer extends VxWorker {
 
         this.initialized = true;
         this.readyCallback = p_callback;
+        if (!!window.vxOptions.mathJaxScript) {
+            this.mathJaxScript = window.vxOptions.mathJaxScript;
+            console.log('override MathJax script', this.mathJaxScript);
+        }
         Utils.loadScript(this.mathJaxScript, null);
         return false;
     }
@@ -178,6 +182,8 @@ class MathJaxRenderer extends VxWorker {
             display = true;
         } else if (text.startsWith('$') && text.endsWith('$')) {
             text = text.substring(1, text.length - 1);
+        } else if (text.match(/^\\begin\s*\{\S+}[\s\S]+\\end\s*\{\S+\}$/)) {
+            display = true;
         } else {
             return null;
         }

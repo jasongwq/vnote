@@ -1,7 +1,9 @@
 #include "settingspage.h"
 
-using namespace vnotex;
+#include <utils/widgetutils.h>
+#include <widgets/propertydefs.h>
 
+using namespace vnotex;
 
 SettingsPage::SettingsPage(QWidget *p_parent)
     : QWidget(p_parent)
@@ -15,20 +17,35 @@ SettingsPage::~SettingsPage()
 bool SettingsPage::search(const QString &p_key)
 {
     bool hit = false;
+
+    if (!p_key.isEmpty() && title().contains(p_key, Qt::CaseInsensitive)) {
+        hit = true;
+    }
+
     for (const auto& item : m_searchItems) {
-        if (item.m_words.contains(p_key, Qt::CaseInsensitive)) {
+        if (!p_key.isEmpty() && item.m_words.contains(p_key, Qt::CaseInsensitive)) {
             // Continue to search all the matched targets.
             hit = true;
-            searchHit(item.m_target);
+            searchHit(item.m_target, true);
+        } else {
+            searchHit(item.m_target, false);
         }
     }
 
     return hit;
 }
 
-void SettingsPage::searchHit(QWidget *p_target)
+void SettingsPage::searchHit(QWidget *p_target, bool p_hit)
 {
-    Q_UNUSED(p_target);
+    if (!p_target) {
+        return;
+    }
+
+    if (p_target->property(PropertyDefs::c_hitSettingWidget).toBool() == p_hit) {
+        return;
+    }
+
+    WidgetUtils::setPropertyDynamically(p_target, PropertyDefs::c_hitSettingWidget, p_hit);
 }
 
 void SettingsPage::addSearchItem(const QString &p_words, QWidget *p_target)

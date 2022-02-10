@@ -37,7 +37,8 @@ namespace vnotex
                 return m_mainState == p_other.m_mainState
                        && m_mainGeometry == p_other.m_mainGeometry
                        && m_visibleDocksBeforeExpand == p_other.m_visibleDocksBeforeExpand
-                       && m_tagExplorerState == p_other.m_tagExplorerState;
+                       && m_tagExplorerState == p_other.m_tagExplorerState
+                       && m_notebookExplorerState == p_other.m_notebookExplorerState;
             }
 
             QByteArray m_mainState;
@@ -47,6 +48,8 @@ namespace vnotex
             QStringList m_visibleDocksBeforeExpand;
 
             QByteArray m_tagExplorerState;
+
+            QByteArray m_notebookExplorerState;
         };
 
         enum OpenGL
@@ -62,6 +65,8 @@ namespace vnotex
             void fromJson(const QJsonObject &p_jobj);
 
             QJsonObject toJson() const;
+
+            QString fetchCommand(const QString &p_file) const;
 
             QString m_name;
 
@@ -131,6 +136,7 @@ namespace vnotex
         void removeQuickAccessFile(const QString &p_file);
 
         const QVector<ExternalProgram> &getExternalPrograms() const;
+        const ExternalProgram *findExternalProgram(const QString &p_name) const;
 
         const QVector<HistoryItem> &getHistory() const;
         void addHistory(const HistoryItem &p_item);

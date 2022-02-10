@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 env:
-    VNOTE_VER: 3.8.1
+    VNOTE_VER: 3.12.888
 
 jobs:
   build-linux:
@@ -39,12 +39,21 @@ jobs:
           git clone https://github.com/tamlok/macdeployqtfix.git macdeployqtfix --depth=1
         working-directory: ${{runner.workspace}}
 
+      - name: Cache Qt
+        id: cache-qt
+        uses: actions/cache@v1  # not v2!
+        with:
+          path: ../Qt
+          key: ${{ runner.os }}-QtCache-5.15-1
+
       - name: Install Qt
         uses: jurplel/install-qt-action@v2
         with:
-          version: 5.12.10
+          version: 5.15.2
           target: desktop
-          modules: qtwebchannel qtwebengine qtsvg qtlocation qttools qttranslations
+          modules: qtwebengine
+          cached: ${{ steps.cache-qt.outputs.cache-hit }}
+
 
       - name: Create Build Dir
         run: mkdir build

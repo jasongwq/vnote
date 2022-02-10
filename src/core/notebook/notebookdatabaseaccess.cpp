@@ -188,11 +188,24 @@ bool NotebookDatabaseAccess::addNode(Node *p_node, bool p_ignoreId)
     }
 
     const ID id = query.lastInsertId().toULongLong();
-    const ID preId = p_node->getId();
     p_node->updateId(id);
 
     qDebug() << "added node id" << id << p_node->getName();
     return true;
+}
+
+bool NotebookDatabaseAccess::addNodeRecursively(Node *p_node, bool p_ignoreId)
+{
+    if (!p_node) {
+        return false;
+    }
+
+    auto paNode = p_node->getParent();
+    if (paNode && !addNodeRecursively(paNode, p_ignoreId)) {
+        return false;
+    }
+
+    return addNode(p_node, p_ignoreId);
 }
 
 QSharedPointer<NotebookDatabaseAccess::NodeRecord> NotebookDatabaseAccess::queryNode(ID p_id)

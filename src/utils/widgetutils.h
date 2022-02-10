@@ -20,6 +20,9 @@ class QShortcut;
 class QLineEdit;
 class QLayout;
 class QPushButton;
+class QSplitter;
+class QScreen;
+class QFormLayout;
 
 namespace vnotex
 {
@@ -34,7 +37,7 @@ namespace vnotex
 
         static void updateStyle(QWidget *p_widget);
 
-        static qreal calculateScaleFactor(bool p_update = false);
+        static qreal calculateScaleFactor(const QScreen *p_screen = nullptr);
 
         static bool isScrollBarVisible(QAbstractScrollArea *p_widget, bool p_horizontal);
 
@@ -85,6 +88,10 @@ namespace vnotex
         static void selectBaseName(QLineEdit *p_lineEdit);
 
         static void setContentsMargins(QLayout *p_layout);
+
+        static bool distributeWidgetsOfSplitter(QSplitter *p_splitter);
+
+        static void clearLayout(QFormLayout *p_layout);
 
     private:
         static void resizeToHideScrollBar(QScrollArea *p_scroll, bool p_vertical, bool p_horizontal);

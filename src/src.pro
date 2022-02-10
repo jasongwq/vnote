@@ -35,6 +35,7 @@ TRANSLATIONS += \
 SOURCES += \
     application.cpp \
     commandlineoptions.cpp \
+    fakeaccessible.cpp \
     main.cpp
 
 INCLUDEPATH *= $$PWD
@@ -54,6 +55,8 @@ include($$PWD/search/search.pri)
 include($$PWD/snippet/snippet.pri)
 
 include($$PWD/imagehost/imagehost.pri)
+
+include($$PWD/task/task.pri)
 
 include($$PWD/core/core.pri)
 
@@ -151,4 +154,5 @@ unix:!macx {
 
 HEADERS += \
     application.h \
-    commandlineoptions.h
+    commandlineoptions.h \
+    fakeaccessible.h

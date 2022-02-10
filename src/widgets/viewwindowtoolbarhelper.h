@@ -17,6 +17,7 @@ namespace vnotex
         {
             Save,
             EditReadDiscard,
+            ViewMode,
 
             // Make sure they are put together.
             // Including Heading1-6 and HeadingNone.
@@ -47,7 +48,8 @@ namespace vnotex
             SectionNumber,
             InplacePreview,
             ImageHost,
-            Debug
+            Debug,
+            Print
         };
 
         static QAction *addAction(QToolBar *p_tb, Action p_action);

@@ -1,11 +1,13 @@
 QT += widgets svg
 
 SOURCES += \
+    $$PWD/callbackpool.cpp \
     $$PWD/contentmediautils.cpp \
     $$PWD/docsutils.cpp \
     $$PWD/htmlutils.cpp \
     $$PWD/imageutils.cpp \
     $$PWD/pathutils.cpp \
+    $$PWD/printutils.cpp \
     $$PWD/processutils.cpp \
     $$PWD/urldragdroputils.cpp \
     $$PWD/utils.cpp \
@@ -16,11 +18,13 @@ SOURCES += \
     $$PWD/clipboardutils.cpp
 
 HEADERS += \
+    $$PWD/callbackpool.h \
     $$PWD/contentmediautils.h \
     $$PWD/docsutils.h \
     $$PWD/htmlutils.h \
     $$PWD/imageutils.h \
     $$PWD/pathutils.h \
+    $$PWD/printutils.h \
     $$PWD/processutils.h \
     $$PWD/urldragdroputils.h \
     $$PWD/utils.h \

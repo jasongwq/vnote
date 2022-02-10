@@ -24,6 +24,8 @@
 #include <QLineEdit>
 #include <QLayout>
 #include <QPushButton>
+#include <QSplitter>
+#include <QFormLayout>
 
 #include <core/global.h>
 
@@ -44,12 +46,14 @@ void WidgetUtils::updateStyle(QWidget *p_widget)
     p_widget->update();
 }
 
-qreal WidgetUtils::calculateScaleFactor(bool p_update)
+qreal WidgetUtils::calculateScaleFactor(const QScreen *p_screen)
 {
     static qreal factor = -1;
 
-    if (factor < 0 || p_update) {
-        factor =  QGuiApplication::primaryScreen()->devicePixelRatio();
+    if (factor < 0 || p_screen) {
+        auto screen = p_screen ? p_screen : QGuiApplication::primaryScreen();
+        factor =  screen->devicePixelRatio();
+        qDebug() << screen->name() << "dpi" << factor;
     }
 
     return factor;
@@ -417,4 +421,50 @@ void WidgetUtils::setContentsMargins(QLayout *p_layout)
 {
     // Use 0 bottom margin to align dock widgets with the content area.
     p_layout->setContentsMargins(CONTENTS_MARGIN, CONTENTS_MARGIN, CONTENTS_MARGIN, 0);
+}
+
+bool WidgetUtils::distributeWidgetsOfSplitter(QSplitter *p_splitter)
+{
+    if (!p_splitter) {
+        return false;
+    }
+
+    if (p_splitter->count() == 0) {
+        return false;
+    } else if (p_splitter->count() == 1) {
+        return true;
+    }
+
+    auto sizes = p_splitter->sizes();
+    int totalWidth = 0;
+    for (auto sz : sizes) {
+        totalWidth += sz;
+    }
+
+    int newWidth = totalWidth / sizes.size();
+    if (newWidth == 0) {
+        return false;
+    }
+
+    bool changed = false;
+    for (int i = 0; i < sizes.size(); ++i) {
+        if (sizes[i] != newWidth) {
+            sizes[i] = newWidth;
+            changed = true;
+        }
+    }
+
+    if (changed) {
+        p_splitter->setSizes(sizes);
+        return true;
+    }
+
+    return false;
+}
+
+void WidgetUtils::clearLayout(QFormLayout *p_layout)
+{
+    for (int i = p_layout->rowCount() - 1; i >= 0; --i) {
+        p_layout->removeRow(i);
+    }
 }

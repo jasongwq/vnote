@@ -9,15 +9,23 @@
 #include <QLabel>
 #include <QApplication>
 #include <QProgressDialog>
+#include <QMenu>
+#include <QActionGroup>
+#include <QTimer>
+#include <QPrinter>
 
 #include <core/fileopenparameters.h>
 #include <core/editorconfig.h>
-#include <core/markdowneditorconfig.h>
+#include <core/coreconfig.h>
 #include <core/htmltemplatehelper.h>
+#include <core/exception.h>
 #include <vtextedit/vtextedit.h>
 #include <vtextedit/pegmarkdownhighlighter.h>
 #include <vtextedit/markdowneditorconfig.h>
 #include <utils/pathutils.h>
+#include <utils/widgetutils.h>
+#include <utils/printutils.h>
+#include <utils/fileutils.h>
 #include <buffer/markdownbuffer.h>
 #include <core/vnotex.h>
 #include <core/thememgr.h>
@@ -126,11 +134,6 @@ void MarkdownViewWindow::setModeInternal(ViewWindowMode p_mode, bool p_syncBuffe
 
     case ViewWindowMode::Edit:
     {
-        if (m_debugViewer && m_debugViewer->isVisible()) {
-            toggleDebug();
-        }
-
-        bool hideViewer = true;
         if (!m_editor) {
             // We need viewer to preview.
             if (!m_viewer) {
@@ -139,7 +142,6 @@ void MarkdownViewWindow::setModeInternal(ViewWindowMode p_mode, bool p_syncBuffe
                 // Must show the viewer to let it init with the correct DPI.
                 // Will hide it when viewerReady().
                 m_viewer->show();
-                hideViewer = false;
             }
 
             setupTextEditor();
@@ -147,16 +149,17 @@ void MarkdownViewWindow::setModeInternal(ViewWindowMode p_mode, bool p_syncBuffe
             if (p_syncBuffer) {
                 syncTextEditorFromBuffer(true);
             }
+
+            m_editor->show();
+
+            setEditViewMode(ConfigMgr::getInst().getEditorConfig().getMarkdownEditorConfig().getEditViewMode());
+        } else {
+            setEditViewMode(m_editViewMode);
         }
 
         // Avoid focus glitch.
         m_editor->show();
         m_editor->setFocus();
-
-        if (hideViewer) {
-            Q_ASSERT(m_viewer);
-            m_viewer->hide();
-        }
 
         getMainStatusWidget()->setCurrentWidget(m_textEditorStatusWidget.get());
         break;
@@ -167,7 +170,7 @@ void MarkdownViewWindow::setModeInternal(ViewWindowMode p_mode, bool p_syncBuffe
         break;
     }
 
-    // Let editor to show or scrollToLine will not work correctly.
+    // Let editor to show, or scrollToLine will not work correctly.
     QCoreApplication::processEvents();
 
     if (p_syncBuffer) {
@@ -203,9 +206,11 @@ void MarkdownViewWindow::handleEditorConfigChange()
             m_editor->setConfig(config);
 
             m_editor->updateFromConfig();
+
+            updateEditorFromConfig();
         }
 
-        updateWebViewerConfig(markdownEditorConfig);
+        updateWebViewerConfig();
     }
 }
 
@@ -267,6 +272,7 @@ void MarkdownViewWindow::setupToolBar()
 
     addAction(toolBar, ViewWindowToolBarHelper::EditReadDiscard);
     addAction(toolBar, ViewWindowToolBarHelper::Save);
+    addAction(toolBar, ViewWindowToolBarHelper::ViewMode);
 
     toolBar->addSeparator();
 
@@ -281,7 +287,7 @@ void MarkdownViewWindow::setupToolBar()
     {
         auto act = addAction(toolBar, ViewWindowToolBarHelper::InplacePreview);
         connect(act, &QAction::triggered,
-                this, [this, act](bool p_checked) {
+                this, [this](bool p_checked) {
                     if (!isReadMode()) {
                         m_editor->setInplacePreviewEnabled(p_checked);
                     }
@@ -315,16 +321,12 @@ void MarkdownViewWindow::setupToolBar()
     addAction(toolBar, ViewWindowToolBarHelper::TypeTable);
 
     ToolBarHelper::addSpacer(toolBar);
-    addAction(toolBar, ViewWindowToolBarHelper::FindAndReplace);
-    addAction(toolBar, ViewWindowToolBarHelper::Outline);
 
-    {
-        auto act = addAction(toolBar, ViewWindowToolBarHelper::Debug);
-        connect(this, &ViewWindow::modeChanged,
-                this, [this, act]() {
-                    act->setEnabled(m_mode != ViewWindowMode::Edit);
-                });
-    }
+    addAction(toolBar, ViewWindowToolBarHelper::Outline);
+    addAction(toolBar, ViewWindowToolBarHelper::FindAndReplace);
+    addAction(toolBar, ViewWindowToolBarHelper::Print);
+
+    addAction(toolBar, ViewWindowToolBarHelper::Debug);
 }
 
 void MarkdownViewWindow::setupTextEditor()
@@ -340,6 +342,7 @@ void MarkdownViewWindow::setupTextEditor()
                                   createMarkdownEditorConfig(editorConfig, markdownEditorConfig),
                                   createMarkdownEditorParameters(editorConfig, markdownEditorConfig),
                                   this);
+    // Always editor comes first.
     m_splitter->insertWidget(0, m_editor);
 
     TextViewWindowHelper::connectEditor(this);
@@ -354,6 +357,8 @@ void MarkdownViewWindow::setupTextEditor()
 
     m_editor->setImageHost(m_imageHost);
 
+    updateEditorFromConfig();
+
     // Connect viewer and editor.
     connect(adapter(), &MarkdownViewerAdapter::viewerReady,
             m_editor->getHighlighter(), &vte::PegMarkdownHighlighter::updateHighlight);
@@ -361,6 +366,10 @@ void MarkdownViewWindow::setupTextEditor()
             adapter(), &MarkdownViewerAdapter::htmlToMarkdownRequested);
     connect(adapter(), &MarkdownViewerAdapter::htmlToMarkdownReady,
             m_editor, &MarkdownEditor::handleHtmlToMarkdownData);
+    connect(m_editor, &vte::VMarkdownEditor::externalCodeBlockHighlightRequested,
+            this, &MarkdownViewWindow::handleExternalCodeBlockHighlightRequest);
+    connect(adapter(), &MarkdownViewerAdapter::highlightCodeBlockReady,
+            m_editor, &vte::VMarkdownEditor::handleExternalCodeBlockHighlightData);
 
     // Connect outline pipeline.
     connect(m_editor, &MarkdownEditor::headingsChanged,
@@ -431,6 +440,7 @@ void MarkdownViewWindow::setupViewer()
 
     auto adapter = new EditorMarkdownViewerAdapter(nullptr, this);
     m_viewer = new MarkdownViewer(adapter,
+                                  this,
                                   VNoteX::getInst().getThemeMgr().getBaseBackground(),
                                   markdownEditorConfig.getZoomFactorInReadMode(),
                                   this);
@@ -485,8 +495,10 @@ void MarkdownViewWindow::setupViewer()
             });
     connect(adapter, &MarkdownViewerAdapter::viewerReady,
             this, [this]() {
+                m_viewerReady = true;
+
                 if (m_mode == ViewWindowMode::Edit) {
-                    m_viewer->hide();
+                    setEditViewMode(m_editViewMode);
                 }
             });
 }
@@ -622,7 +634,7 @@ EditorMarkdownViewerAdapter *MarkdownViewWindow::adapter() const
 
 int MarkdownViewWindow::getEditLineNumber() const
 {
-    if (m_previousMode == ViewWindowMode::Edit || m_previousMode == ViewWindowMode::FocusPreview) {
+    if (m_previousMode == ViewWindowMode::Edit) {
         if (m_editor) {
             return m_editor->getTopLine();
         }
@@ -951,13 +963,16 @@ void MarkdownViewWindow::scrollDown()
     }
 }
 
-void MarkdownViewWindow::updateWebViewerConfig(const MarkdownEditorConfig &p_config)
+void MarkdownViewWindow::updateWebViewerConfig()
 {
     if (!m_viewer) {
         return;
     }
 
-    m_viewer->setZoomFactor(p_config.getZoomFactorInReadMode());
+    const auto &editorConfig = ConfigMgr::getInst().getEditorConfig();
+    const auto &markdownEditorConfig = editorConfig.getMarkdownEditorConfig();
+
+    m_viewer->setZoomFactor(markdownEditorConfig.getZoomFactorInReadMode());
 }
 
 void MarkdownViewWindow::zoom(bool p_zoomIn)
@@ -1152,10 +1167,6 @@ QString MarkdownViewWindow::selectedText() const
         return m_viewer->selectedText();
 
     case ViewWindowMode::Edit:
-        Q_FALLTHROUGH();
-    case ViewWindowMode::FullPreview:
-        Q_FALLTHROUGH();
-    case ViewWindowMode::FocusPreview:
         Q_ASSERT(m_editor);
         return m_editor->getTextEdit()->selectedText();
 
@@ -1248,4 +1259,200 @@ void MarkdownViewWindow::setupDebugViewer()
     m_debugViewer = new WebViewer(VNoteX::getInst().getThemeMgr().getBaseBackground(), this);
     m_debugViewer->resize(m_splitter->width(), m_splitter->height() / 2);
     mainSplitter->addWidget(m_debugViewer);
+}
+
+void MarkdownViewWindow::updateViewModeMenu(QMenu *p_menu)
+{
+    p_menu->clear();
+
+    if (isReadMode()) {
+        auto act = p_menu->addAction(tr("View Mode Not Supported In Read Mode"));
+        act->setEnabled(false);
+        return;
+    }
+
+    if (!m_viewModeActionGroup) {
+        m_viewModeActionGroup = new QActionGroup(this);
+        connect(m_viewModeActionGroup, &QActionGroup::triggered,
+                this, [this](QAction *act) {
+                    auto mode = static_cast<MarkdownEditorConfig::EditViewMode>(act->data().toInt());
+                    if (mode != m_editViewMode) {
+                        ConfigMgr::getInst().getEditorConfig().getMarkdownEditorConfig().setEditViewMode(mode);
+                        setEditViewMode(mode);
+                    }
+                });
+    }
+
+    {
+        auto act = p_menu->addAction(tr("Edit Only"));
+        act->setCheckable(true);
+        act->setData(static_cast<int>(MarkdownEditorConfig::EditViewMode::EditOnly));
+        m_viewModeActionGroup->addAction(act);
+
+        if (act->data().toInt() == m_editViewMode) {
+            act->setChecked(true);
+        }
+    }
+
+    {
+        auto act = p_menu->addAction(tr("Edit with Preview"));
+        act->setCheckable(true);
+        act->setData(static_cast<int>(MarkdownEditorConfig::EditViewMode::EditPreview));
+        m_viewModeActionGroup->addAction(act);
+
+        if (act->data().toInt() == m_editViewMode) {
+            act->setChecked(true);
+        }
+    }
+}
+
+void MarkdownViewWindow::setEditViewMode(MarkdownEditorConfig::EditViewMode p_mode)
+{
+    Q_ASSERT(m_mode == ViewWindowMode::Edit);
+
+    bool modeChanged = false;
+    if (m_editViewMode != p_mode) {
+        m_editViewMode = p_mode;
+        modeChanged = true;
+    }
+
+    switch (p_mode) {
+    case MarkdownEditorConfig::EditViewMode::EditOnly:
+    {
+        if (m_viewerReady) {
+            m_viewer->hide();
+        }
+
+        if (modeChanged) {
+            disconnect(m_editor->getTextEdit(), &vte::VTextEdit::contentsChanged,
+                       m_syncPreviewTimer, QOverload<>::of(&QTimer::start));
+            disconnect(m_editor, &MarkdownEditor::topLineChanged,
+                       this, &MarkdownViewWindow::syncEditorPositionToPreview);
+        }
+        break;
+    }
+
+    case MarkdownEditorConfig::EditViewMode::EditPreview:
+    {
+        m_viewer->show();
+        WidgetUtils::distributeWidgetsOfSplitter(m_splitter);
+
+        if (modeChanged) {
+            if (!m_syncPreviewTimer) {
+                m_syncPreviewTimer = new QTimer(this);
+                m_syncPreviewTimer->setSingleShot(true);
+                m_syncPreviewTimer->setInterval(300);
+                connect(m_syncPreviewTimer, &QTimer::timeout,
+                        this, &MarkdownViewWindow::syncEditorContentsToPreview);
+            }
+
+            connect(m_editor->getTextEdit(), &vte::VTextEdit::contentsChanged,
+                    m_syncPreviewTimer, QOverload<>::of(&QTimer::start),
+                    Qt::UniqueConnection);
+            connect(m_editor, &MarkdownEditor::topLineChanged,
+                    this, &MarkdownViewWindow::syncEditorPositionToPreview,
+                    Qt::UniqueConnection);
+        }
+
+        syncEditorContentsToPreview();
+
+        break;
+    }
+
+    default:
+        Q_ASSERT(false);
+        break;
+    }
+}
+
+void MarkdownViewWindow::syncEditorContentsToPreview()
+{
+    if (!m_viewerReady || isReadMode() || m_editViewMode == MarkdownEditorConfig::EditViewMode::EditOnly) {
+        return;
+    }
+
+    adapter()->setText(m_editor->getText(), m_editor->getTopLine());
+}
+
+void MarkdownViewWindow::syncEditorPositionToPreview()
+{
+    if (!m_viewerReady || isReadMode() || m_editViewMode == MarkdownEditorConfig::EditViewMode::EditOnly) {
+        return;
+    }
+
+    adapter()->scrollToPosition(MarkdownViewerAdapter::Position(m_editor->getTopLine(), QString()));
+}
+
+void MarkdownViewWindow::print()
+{
+    if (!m_viewer || !m_viewerReady) {
+        return;
+    }
+
+    auto printer = PrintUtils::promptForPrint(m_viewer->hasSelection(), this);
+    if (printer) {
+        m_viewer->page()->print(printer.data(), [printer](bool p_succeeded) mutable {
+                    Q_UNUSED(p_succeeded);
+                    printer.reset();
+                });
+    }
+}
+
+void MarkdownViewWindow::handleExternalCodeBlockHighlightRequest(int p_idx, quint64 p_timeStamp, const QString &p_text)
+{
+    static bool stylesInitialized = false;
+    if (!stylesInitialized) {
+        stylesInitialized = true;
+        const auto file = VNoteX::getInst().getThemeMgr().getFile(Theme::File::HighlightStyleSheet);
+        if (file.isEmpty()) {
+            qWarning() << "no highlight style sheet specified for external code block highlight";
+        } else {
+            QString content;
+            try {
+                content = FileUtils::readTextFile(file);
+            } catch (Exception &e) {
+                qWarning() << "failed to read highlight style sheet for external code block highlight" << file << e.what();
+            }
+            adapter()->fetchStylesFromStyleSheet(content, [this](const QVector<MarkdownViewerAdapter::CssRuleStyle> *rules) {
+                MarkdownEditor::ExternalCodeBlockHighlightStyles styles;
+
+                const QString prefix(".token.");
+                for (const auto &rule : *rules) {
+                    bool isFirst = true;
+                    QTextCharFormat fmt;
+
+                    // Just fetch `.token.attr` styles.
+                    auto selects = rule.m_selector.split(QLatin1Char(','));
+                    for (const auto &sel : selects) {
+                        const auto ts = sel.trimmed();
+                        if (!ts.startsWith(prefix)) {
+                            continue;
+                        }
+                        auto classList = ts.mid(prefix.size()).split(QLatin1Char('.'));
+                        for (const auto &cla : classList) {
+                            if (isFirst) {
+                                fmt = rule.toTextCharFormat();
+                                isFirst = false;
+                            }
+                            styles.insert(cla, fmt);
+                        }
+                    }
+                }
+
+                MarkdownEditor::setExternalCodeBlockHighlihgtStyles(styles);
+            });
+        }
+    }
+
+    adapter()->highlightCodeBlock(p_idx, p_timeStamp, p_text);
+}
+
+void MarkdownViewWindow::updateEditorFromConfig()
+{
+    const auto &coreConfig = ConfigMgr::getInst().getCoreConfig();
+
+    {
+        vte::Key leaderKey(coreConfig.getShortcutLeaderKey());
+        m_editor->setLeaderKeyToSkip(leaderKey.m_key, leaderKey.m_modifiers);
+    }
 }

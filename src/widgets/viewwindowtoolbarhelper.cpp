@@ -118,6 +118,18 @@ QAction *ViewWindowToolBarHelper::addAction(QToolBar *p_tb, Action p_action)
         break;
     }
 
+    case Action::ViewMode:
+    {
+        act = p_tb->addAction(ToolBarHelper::generateIcon("view_mode_editor.svg"),
+                              ViewWindow::tr("View Mode"));
+
+        auto toolBtn = dynamic_cast<QToolButton *>(p_tb->widgetForAction(act));
+        Q_ASSERT(toolBtn);
+        toolBtn->setPopupMode(QToolButton::InstantPopup);
+        toolBtn->setProperty(PropertyDefs::c_toolButtonWithoutMenuIndicator, true);
+        break;
+    }
+
     case Action::TypeHeading:
     {
         act = p_tb->addAction(ToolBarHelper::generateIcon("type_heading_editor.svg"),
@@ -397,6 +409,13 @@ QAction *ViewWindowToolBarHelper::addAction(QToolBar *p_tb, Action p_action)
     {
         act = p_tb->addAction(ToolBarHelper::generateIcon("debug_editor.svg"), ViewWindow::tr("Debug"));
         addActionShortcut(act, editorConfig.getShortcut(Shortcut::Debug), viewWindow);
+        break;
+    }
+
+    case Action::Print:
+    {
+        act = p_tb->addAction(ToolBarHelper::generateIcon("print_editor.svg"), ViewWindow::tr("Print"));
+        addActionShortcut(act, editorConfig.getShortcut(Shortcut::Print), viewWindow);
         break;
     }
 

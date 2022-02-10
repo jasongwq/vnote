@@ -97,6 +97,8 @@ namespace vnotex
 
         bool isSessionEnabled() const;
 
+        virtual QString selectedText() const;
+
     public slots:
         virtual void handleEditorConfigChange() = 0;
 
@@ -178,6 +180,8 @@ namespace vnotex
 
         virtual void toggleDebug();
 
+        virtual void print();
+
     protected:
         bool eventFilter(QObject *p_obj, QEvent *p_event) Q_DECL_OVERRIDE;
 
@@ -224,8 +228,6 @@ namespace vnotex
 
         virtual void zoom(bool p_zoomIn) = 0;
 
-        virtual QString selectedText() const;
-
         void showZoomFactor(qreal p_factor);
 
         void showZoomDelta(int p_delta);
@@ -251,6 +253,8 @@ namespace vnotex
         void updateLastFindInfo(const QStringList &p_texts, FindOptions p_options);
 
         virtual QPoint getFloatingWidgetPosition();
+
+        virtual void updateViewModeMenu(QMenu *p_menu);
 
         static QToolBar *createToolBar(QWidget *p_parent = nullptr);
 

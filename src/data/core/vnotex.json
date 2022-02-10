@@ -3,7 +3,7 @@
     "metadata" : {
         "//comment": "When releasing new version, please go through the following configs to check if override is needed.",
         "//Comment": "markdown_editor#override_viewer_resource",
-        "version" : "3.8.1"
+        "version" : "3.12.888"
     },
     "core" : {
         "theme" : "pure",
@@ -61,7 +61,27 @@
             "MoveOneSplitRight" : "Ctrl+G, Shift+L",
             "OpenLastClosedFile" : "Ctrl+Shift+T"
         },
-        "toolbar_icon_size" : 16,
+        "file_type_suffixes" : [
+            {
+                "name" : "Markdown",
+                "suffixes" : [
+                    "md",
+                    "mkd",
+                    "rmd",
+                    "markdown"
+                ]
+            },
+            {
+                "name" : "Text",
+                "suffixes" : [
+                    "txt",
+                    "text",
+                    "log"
+                ]
+            }
+        ],
+        "shortcut_leader_key" : "Ctrl+G",
+        "toolbar_icon_size" : 18,
         "docks_tabbar_icon_size" : 24,
         "note_management" : {
             "external_node" : {
@@ -76,7 +96,9 @@
         "check_for_updates_on_start" : true,
         "//comment" : "Max count of the history items for each notebook and session config",
         "history_max_count" : 100,
-        "per_notebook_history" : true
+        "per_notebook_history" : false,
+        "//comment" : "Line ending policy for config files, platform/lf/crlf/cr",
+        "line_ending" : "lf"
     },
     "editor" : {
         "core": {
@@ -120,7 +142,8 @@
                 "FindPrevious" : "Shift+F3",
                 "ApplySnippet" : "Ctrl+G, I",
                 "Tag" : "Ctrl+G, B",
-                "Debug" : "F12"
+                "Debug" : "F12",
+                "Print" : ""
             },
             "spell_check_auto_detect_language" : false,
             "spell_check_default_dictionary" : "en_US",
@@ -140,6 +163,7 @@
             "wrap_mode": "word_anywhere",
             "expand_tab": true,
             "tab_stop_width": 4,
+            "highlight_whitespace": false,
             "//comment" : "Positive to zoom in and negative to zoom out",
             "zoom_delta": 0,
             "spell_check": false
@@ -316,6 +340,8 @@
             "web_graphviz" : true,
             "//commnet" : "Local Graphviz executable file to render Graphviz",
             "graphviz_exe" : "",
+            "//commnet" : "MathJax script to use",
+            "mathjax_script" : "",
             "//comment" : "Whether prepend a dot at front in relative link like images",
             "prepend_dot_in_relative_link" : false,
             "//comment" : "Whether ask for user confirmation before clearing obsolete images",
@@ -331,7 +357,7 @@
             "section_number_style" : "digdotdigdot",
             "//comment" : "Whether enable image width constraint",
             "constrain_image_width" : true,
-            "image_align_center" : true,
+            "image_align_center" : false,
             "//comment" : "Whether enable in-place preview width constraint",
             "constrain_inplace_preview_width" : false,
             "//comment" : "Zoom factor in read mode",
@@ -348,6 +374,8 @@
             "linkify" : true,
             "//comment" : "Whether add indentation to the first line of paragraph",
             "indent_first_line" : false,
+            "//comment" : "Whether add line number to fenced code block in read mode",
+            "code_block_line_number" : true,
             "//comment" : "Whether enable smart table (formatting)",
             "smart_table" : true,
             "//comment" : "Time interval (milliseconds) to do smart table formatting",
@@ -356,7 +384,9 @@
             "editor_overridden_font_family" : "",
             "//comment" : "Sources to enable inplace preview, separated by ;",
             "//comment" : "imagelink/codeblock/math",
-            "inplace_preview_sources" : "imagelink;codeblock;math"
+            "inplace_preview_sources" : "imagelink;codeblock;math",
+            "//comment" : "view mode of edit mode: editonly/editpreview",
+            "edit_view_mode" : "editonly"
         },
         "image_host" : {
             "hosts" : [
@@ -375,16 +405,19 @@
         "outline_section_number_enabled" : false,
         "//comment" : "Default find options in FindAndReplace",
         "find_and_replace_options" : 16,
-        "//comment" : "View order of the node explorer",
+        "//comment" : "View order of the node explorer (NotebookNodeExplorer::ViewOrder)",
         "node_explorer_view_order" : 0,
         "node_explorer_external_files_visible" : true,
         "node_explorer_auto_import_external_files_enabled" : true,
         "//comment" : "Whether close the file before opening it with external program",
         "node_explorer_close_before_open_with_enabled" : true,
+        "//comment" : "0 - combined/1 - separate_single/2 - separate_double",
+        "node_explorer_explore_mode" : 1,
         "search_panel_advanced_settings_visible" : true,
         "//comment" : "Docks to ignore when expanding content area of main window",
         "main_window_keep_docks_expanding_content_area": ["OutlineDock.vnotex"],
         "snippet_panel_builtin_snippets_visible" : true,
-        "tag_explorer_two_columns_enabled" : true
+        "tag_explorer_two_columns_enabled" : true,
+        "new_note_default_file_type" : 0
     }
 }
