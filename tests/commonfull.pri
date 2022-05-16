@@ -12,6 +12,8 @@ include($$LIBS_FOLDER/vtextedit/src/editor/editor_export.pri)
 
 include($$LIBS_FOLDER/vtextedit/src/libs/syntax-highlighting/syntax-highlighting_export.pri)
 
+include($$LIBS_FOLDER/QHotkey/QHotkey_export.pri)
+
 include($$SRC_FOLDER/utils/utils.pri)
 
 include($$SRC_FOLDER/export/export.pri)
@@ -27,3 +29,5 @@ include($$SRC_FOLDER/task/task.pri)
 include($$SRC_FOLDER/core/core.pri)
 
 include($$SRC_FOLDER/widgets/widgets.pri)
+
+include($$SRC_FOLDER/unitedentry/unitedentry.pri)

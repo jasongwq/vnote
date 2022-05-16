@@ -64,10 +64,18 @@ void SettingsPage::pageIsChanged()
     emit changed();
 }
 
+void SettingsPage::pageIsChangedWithRestartNeeded()
+{
+    m_changed = true;
+    m_restartNeeded = true;
+    emit changed();
+}
+
 void SettingsPage::load()
 {
     loadInternal();
     m_changed = false;
+    m_restartNeeded = false;
 }
 
 bool SettingsPage::save()
@@ -101,4 +109,9 @@ const QString &SettingsPage::error() const
 void SettingsPage::setError(const QString &p_err)
 {
     m_error = p_err;
+}
+
+bool SettingsPage::isRestartNeeded() const
+{
+    return m_restartNeeded;
 }

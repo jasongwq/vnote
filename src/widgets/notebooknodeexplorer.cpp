@@ -1060,6 +1060,7 @@ static QIcon generateMenuActionIcon(const QString &p_name)
 
 QAction *NotebookNodeExplorer::createAction(Action p_act, QObject *p_parent, bool p_master)
 {
+    const auto &coreConfig = ConfigMgr::getInst().getCoreConfig();
     QAction *act = nullptr;
     switch (p_act) {
     case Action::NewNote:
@@ -1070,6 +1071,7 @@ QAction *NotebookNodeExplorer::createAction(Action p_act, QObject *p_parent, boo
                 this, []() {
                     emit VNoteX::getInst().newNoteRequested();
                 });
+        WidgetUtils::addActionShortcutText(act, coreConfig.getShortcut(CoreConfig::NewNote));
         break;
 
     case Action::NewFolder:
@@ -1080,6 +1082,7 @@ QAction *NotebookNodeExplorer::createAction(Action p_act, QObject *p_parent, boo
                 this, []() {
                     emit VNoteX::getInst().newFolderRequested();
                 });
+        WidgetUtils::addActionShortcutText(act, coreConfig.getShortcut(CoreConfig::NewFolder));
         break;
 
     case Action::Properties:
@@ -1088,24 +1091,9 @@ QAction *NotebookNodeExplorer::createAction(Action p_act, QObject *p_parent, boo
                           p_parent);
         connect(act, &QAction::triggered,
                 this, [this, p_master]() {
-                    auto node = p_master ? getCurrentMasterNode() : getCurrentSlaveNode();
-                    if (checkInvalidNode(node)) {
-                        return;
-                    }
-
-                    int ret = QDialog::Rejected;
-                    if (node->hasContent()) {
-                        NotePropertiesDialog dialog(node, VNoteX::getInst().getMainWindow());
-                        ret = dialog.exec();
-                    } else {
-                        FolderPropertiesDialog dialog(node, VNoteX::getInst().getMainWindow());
-                        ret = dialog.exec();
-                    }
-
-                    if (ret == QDialog::Accepted) {
-                        setCurrentNode(node);
-                    }
+                    openCurrentNodeProperties(p_master);
                 });
+        WidgetUtils::addActionShortcutText(act, coreConfig.getShortcut(CoreConfig::Properties));
         break;
 
     case Action::OpenLocation:
@@ -1178,6 +1166,7 @@ QAction *NotebookNodeExplorer::createAction(Action p_act, QObject *p_parent, boo
                 this, [this, p_master]() {
                     copySelectedNodes(false, p_master);
                 });
+        WidgetUtils::addActionShortcutText(act, coreConfig.getShortcut(CoreConfig::Copy));
         break;
 
     case Action::Cut:
@@ -1186,12 +1175,14 @@ QAction *NotebookNodeExplorer::createAction(Action p_act, QObject *p_parent, boo
                 this, [this, p_master]() {
                     copySelectedNodes(true, p_master);
                 });
+        WidgetUtils::addActionShortcutText(act, coreConfig.getShortcut(CoreConfig::Cut));
         break;
 
     case Action::Paste:
         act = new QAction(tr("&Paste"), p_parent);
         connect(act, &QAction::triggered,
                 this, &NotebookNodeExplorer::pasteNodesFromClipboard);
+        WidgetUtils::addActionShortcutText(act, coreConfig.getShortcut(CoreConfig::Paste));
         break;
 
     case Action::Delete:
@@ -1990,6 +1981,8 @@ void NotebookNodeExplorer::setExploreMode(int p_mode)
         case ExploreMode::Combined:
             setFocusProxy(m_masterExplorer);
 
+            WidgetUtils::distributeWidgetsOfSplitter(m_splitter);
+
             Q_ASSERT(m_slaveExplorer);
             m_slaveExplorer->clear();
             m_slaveExplorer->hide();
@@ -2009,6 +2002,7 @@ void NotebookNodeExplorer::setExploreMode(int p_mode)
 
             m_slaveExplorer->show();
             m_splitter->setOrientation(m_exploreMode == ExploreMode::SeparateSingle ? Qt::Vertical : Qt::Horizontal);
+            WidgetUtils::distributeWidgetsOfSplitter(m_splitter);
 
             connect(m_masterExplorer, &QTreeWidget::currentItemChanged,
                     this, &NotebookNodeExplorer::updateSlaveExplorer);
@@ -2160,6 +2154,15 @@ void NotebookNodeExplorer::addOpenWithMenu(QMenu *p_menu, bool p_master)
                        });
 }
 
+// Shortcut auxiliary, it can also be used to determine the browser.
+bool NotebookNodeExplorer::isActionFromMaster() const
+{
+    if (!isCombinedExploreMode()) {
+        return m_masterExplorer->hasFocus();
+    }
+    return true;
+}
+
 void NotebookNodeExplorer::setupShortcuts()
 {
     const auto &coreConfig = ConfigMgr::getInst().getCoreConfig();
@@ -2170,11 +2173,49 @@ void NotebookNodeExplorer::setupShortcuts()
         if (shortcut) {
             connect(shortcut, &QShortcut::activated,
                     this, [this]() {
-                        bool isMaster = true;
-                        if (!isCombinedExploreMode()) {
-                            isMaster = m_masterExplorer->hasFocus();
-                        }
-                        openSelectedNodesWithProgram(QString(), isMaster);
+                        openSelectedNodesWithProgram(QString(), isActionFromMaster());
+                    });
+        }
+    }
+
+    // Copy
+    {
+        auto shortcut = WidgetUtils::createShortcut(coreConfig.getShortcut(CoreConfig::Copy), this, Qt::WidgetWithChildrenShortcut);
+        if (shortcut) {
+            connect(shortcut, &QShortcut::activated,
+                    this, [this]() {
+                        copySelectedNodes(false, isActionFromMaster());
+                    });
+        }
+    }
+
+    // Cut
+    {
+        auto shortcut = WidgetUtils::createShortcut(coreConfig.getShortcut(CoreConfig::Cut), this);
+        if (shortcut) {
+            connect(shortcut, &QShortcut::activated,
+                    this, [this]() {
+                        copySelectedNodes(true, isActionFromMaster());
+                    });
+        }
+    }
+
+    // Paste
+    {
+        auto shortcut = WidgetUtils::createShortcut(coreConfig.getShortcut(CoreConfig::Paste), this);
+        if (shortcut) {
+            connect(shortcut, &QShortcut::activated,
+                    this, &NotebookNodeExplorer::pasteNodesFromClipboard);
+        }
+    }
+
+    // Properties
+    {
+        auto shortcut = WidgetUtils::createShortcut(coreConfig.getShortcut(CoreConfig::Properties), this);
+        if (shortcut) {
+            connect(shortcut,  &QShortcut::activated,
+                    this, [this]() {
+                        openCurrentNodeProperties(isActionFromMaster());
                     });
         }
     }
@@ -2220,6 +2261,29 @@ void NotebookNodeExplorer::openSelectedNodesWithProgram(const QString &p_name, b
             paras->m_fileType = p_name;
             emit VNoteX::getInst().openFileRequested(file, paras);
         }
+    }
+}
+
+void NotebookNodeExplorer::openCurrentNodeProperties(bool p_master)
+{
+    const int selectedSize = p_master ? m_masterExplorer->selectedItems().size() : m_slaveExplorer->selectedItems().size();
+    if (selectedSize != 1) {
+        return;
+    }
+    auto node = p_master ? getCurrentMasterNode() : getCurrentSlaveNode();
+    if (checkInvalidNode(node)) {
+        return;
+    }
+    int ret = QDialog::Rejected;
+    if (node->hasContent()) {
+        NotePropertiesDialog dialog(node, VNoteX::getInst().getMainWindow());
+        ret = dialog.exec();
+    } else {
+        FolderPropertiesDialog dialog(node, VNoteX::getInst().getMainWindow());
+        ret = dialog.exec();
+    }
+    if (ret == QDialog::Accepted) {
+        setCurrentNode(node);
     }
 }
 

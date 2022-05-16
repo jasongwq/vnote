@@ -19,6 +19,7 @@
 #include <QWindowStateChangeEvent>
 #include <QTimer>
 #include <QProgressDialog>
+#include <QHotkey>
 
 #include "toolbox.h"
 #include "notebookexplorer.h"
@@ -389,6 +390,7 @@ void MainWindow::closeEvent(QCloseEvent *p_event)
                 showNormal();
             }
         }
+
         saveStateAndGeometry();
     }
 
@@ -408,6 +410,8 @@ void MainWindow::closeEvent(QCloseEvent *p_event)
         FramelessMainWindowImpl::closeEvent(p_event);
         qApp->exit(exitCode > -1 ? exitCode : 0);
     } else {
+        emit minimizedToSystemTray();
+
         hide();
         p_event->ignore();
         if (needShowMessage) {
@@ -551,6 +555,12 @@ void MainWindow::focusViewArea()
     m_viewArea->focus();
 }
 
+NotebookExplorer *MainWindow::getNotebookExplorer() const
+{
+    Q_ASSERT(m_notebookExplorer);
+    return m_notebookExplorer;
+}
+
 void MainWindow::setupToolBar()
 {
     const int sz = ConfigMgr::getInst().getCoreConfig().getToolBarIconSize();
@@ -586,6 +596,14 @@ void MainWindow::closeOnQuit()
 
 void MainWindow::setupShortcuts()
 {
+    const auto &coreConfig = ConfigMgr::getInst().getCoreConfig();
+
+    // For cross-platform global shortcuts, the external library QHotkey is used.
+    QKeySequence wakeUp(coreConfig.getShortcut(CoreConfig::Global_WakeUp));
+    if (!wakeUp.isEmpty()) {
+        auto qHotkey = new QHotkey(wakeUp, true, this);
+        connect(qHotkey , &QHotkey::activated, this, &MainWindow::showMainWindow);
+    }
 }
 
 void MainWindow::setStayOnTop(bool p_enabled)

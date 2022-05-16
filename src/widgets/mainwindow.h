@@ -53,6 +53,8 @@ namespace vnotex
 
         ViewArea *getViewArea() const;
 
+        NotebookExplorer *getNotebookExplorer() const;
+
         void setContentAreaExpanded(bool p_expanded);
         // Should be called after MainWindow is shown.
         bool isContentAreaExpanded() const;
@@ -82,6 +84,8 @@ namespace vnotex
 
         // @m_response of @p_event: true to continue the close, false to stop the close.
         void mainWindowClosed(const QSharedPointer<Event> &p_event);
+
+        void minimizedToSystemTray();
 
         // No user interaction is available.
         void mainWindowClosedOnQuit();

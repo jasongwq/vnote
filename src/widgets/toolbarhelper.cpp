@@ -28,6 +28,7 @@
 #include <core/htmltemplatehelper.h>
 #include <core/exception.h>
 #include <task/taskmgr.h>
+#include <unitedentry/unitedentry.h>
 #include "propertydefs.h"
 #include "dialogs/settings/settingsdialog.h"
 #include "dialogs/updater.h"
@@ -133,12 +134,14 @@ QToolBar *ToolBarHelper::setupFileToolBar(MainWindow *p_win, QToolBar *p_toolBar
         newBtn->setText(MainWindow::tr("New Note"));
 
         // New folder.
-        newMenu->addAction(generateIcon("new_folder.svg"),
-                           MainWindow::tr("New Folder"),
-                           newMenu,
-                           []() {
-                               emit VNoteX::getInst().newFolderRequested();
-                           });
+        auto newFolderAct = newMenu->addAction(generateIcon("new_folder.svg"),
+                                               MainWindow::tr("New Folder"),
+                                               newMenu,
+                                               []() {
+                                                   emit VNoteX::getInst().newFolderRequested();
+                                               });
+        WidgetUtils::addActionShortcut(newFolderAct,
+                                       coreConfig.getShortcut(CoreConfig::Shortcut::NewFolder));
 
         newMenu->addSeparator();
 
@@ -279,6 +282,35 @@ QToolBar *ToolBarHelper::setupQuickAccessToolBar(MainWindow *p_win, QToolBar *p_
         tb->addWidget(toolBtn);
     }
 
+    // Task.
+    {
+        auto act = tb->addAction(generateIcon("task_menu.svg"), MainWindow::tr("Task"));
+        auto btn = dynamic_cast<QToolButton *>(tb->widgetForAction(act));
+        btn->setPopupMode(QToolButton::InstantPopup);
+        btn->setProperty(PropertyDefs::c_toolButtonWithoutMenuIndicator, true);
+
+        auto taskMenu = WidgetsFactory::createMenu(tb);
+        setupTaskActionMenu(taskMenu);
+        btn->setMenu(taskMenu);
+        MainWindow::connect(taskMenu, &QMenu::triggered,
+                            taskMenu, [](QAction *act) {
+            auto task = reinterpret_cast<Task *>(act->data().toULongLong());
+            if (task) {
+                task->run();
+            }
+        });
+        MainWindow::connect(&VNoteX::getInst().getTaskMgr(), &TaskMgr::tasksUpdated,
+                            taskMenu, [taskMenu]() {
+            setupTaskMenu(taskMenu);
+        });
+    }
+
+    // United Entry.
+    {
+        auto ueEdit = new UnitedEntry(tb);
+        tb->addWidget(ueEdit);
+    }
+
     return tb;
 }
 
@@ -361,36 +393,6 @@ void ToolBarHelper::addTaskMenu(QMenu *p_menu, Task *p_task)
     WidgetUtils::addActionShortcut(action, p_task->getShortcut());
 }
 
-QToolBar *ToolBarHelper::setupTaskToolBar(MainWindow *p_win, QToolBar *p_toolBar)
-{
-    auto tb = p_toolBar;
-    if (!tb) {
-        tb = createToolBar(p_win, MainWindow::tr("Task"), "TaskToolBar");
-    }
-
-    auto act = tb->addAction(generateIcon("task_menu.svg"), MainWindow::tr("Task"));
-    auto btn = dynamic_cast<QToolButton *>(tb->widgetForAction(act));
-    btn->setPopupMode(QToolButton::InstantPopup);
-    btn->setProperty(PropertyDefs::c_toolButtonWithoutMenuIndicator, true);
-
-    auto taskMenu = WidgetsFactory::createMenu(tb);
-    setupTaskActionMenu(taskMenu);
-    btn->setMenu(taskMenu);
-    MainWindow::connect(taskMenu, &QMenu::triggered,
-                        taskMenu, [](QAction *act) {
-        auto task = reinterpret_cast<Task *>(act->data().toULongLong());
-        if (task) {
-            task->run();
-        }
-    });
-    MainWindow::connect(&VNoteX::getInst().getTaskMgr(), &TaskMgr::tasksUpdated,
-                        taskMenu, [taskMenu]() {
-        setupTaskMenu(taskMenu);
-    });
-
-    return tb;
-}
-
 QToolBar *ToolBarHelper::setupSettingsToolBar(MainWindow *p_win, QToolBar *p_toolBar)
 {
     auto tb = p_toolBar;
@@ -453,8 +455,6 @@ void ToolBarHelper::setupToolBars(MainWindow *p_mainWindow)
 
     setupQuickAccessToolBar(p_mainWindow, nullptr);
 
-    setupTaskToolBar(p_mainWindow, nullptr);
-
     setupSettingsToolBar(p_mainWindow, nullptr);
 }
 
@@ -466,7 +466,6 @@ void ToolBarHelper::setupToolBars(MainWindow *p_mainWindow, QToolBar *p_toolBar)
 
     setupFileToolBar(p_mainWindow, p_toolBar);
     setupQuickAccessToolBar(p_mainWindow, p_toolBar);
-    setupTaskToolBar(p_mainWindow, p_toolBar);
     setupSettingsToolBar(p_mainWindow, p_toolBar);
 }
 

@@ -10,12 +10,12 @@ on:
   workflow_dispatch:
 
 env:
-    VNOTE_VER: 3.12.888
+    VNOTE_VER: 3.13.0
 
 jobs:
   build:
     name: ${{ matrix.config.name }}
-    runs-on: windows-latest
+    runs-on: windows-2019
     timeout-minutes: 120
 
     strategy:
