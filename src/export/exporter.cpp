@@ -448,6 +448,8 @@ QString Exporter::doExportHtml(const ExportOption &p_option, const QString &p_ou
     //auto fileName = FileUtils::generateFileNameWithSequence(p_outputDir,
     //                                                        QFileInfo(p_file->getName()).completeBaseName(),
     //                                                        suffix);
+    p_outputDir=PathUtils::concatenateFilePath(p_file->getFilePath(), p_outputDir);
+
     auto fileName = QFileInfo(p_file->getName()).completeBaseName() + QLatin1Char('.') + suffix;
     
     auto destFilePath = PathUtils::concatenateFilePath(p_outputDir, fileName);
