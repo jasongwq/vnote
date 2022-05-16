@@ -445,9 +445,11 @@ QString Exporter::doExportHtml(const ExportOption &p_option, const QString &p_ou
     }
 
     QString suffix = p_option.m_htmlOption.m_useMimeHtmlFormat ? QStringLiteral("mht") : QStringLiteral("html");
-    auto fileName = FileUtils::generateFileNameWithSequence(p_outputDir,
-                                                            QFileInfo(p_file->getName()).completeBaseName(),
-                                                            suffix);
+    //auto fileName = FileUtils::generateFileNameWithSequence(p_outputDir,
+    //                                                        QFileInfo(p_file->getName()).completeBaseName(),
+    //                                                        suffix);
+    auto fileName = QFileInfo(p_file->getName()).completeBaseName() + QLatin1Char('.') + suffix;
+    
     auto destFilePath = PathUtils::concatenateFilePath(p_outputDir, fileName);
 
     bool success = getWebViewExporter(p_option)->doExport(p_option, p_file, destFilePath);
