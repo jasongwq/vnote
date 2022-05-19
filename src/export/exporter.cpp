@@ -448,11 +448,11 @@ QString Exporter::doExportHtml(const ExportOption &p_option, const QString &p_ou
     //auto fileName = FileUtils::generateFileNameWithSequence(p_outputDir,
     //                                                        QFileInfo(p_file->getName()).completeBaseName(),
     //                                                        suffix);
-    p_outputDir=PathUtils::concatenateFilePath(p_file->getFilePath(), p_outputDir);
+    QString suffix outputDir=PathUtils::concatenateFilePath(p_file->getFilePath(), p_outputDir);
 
     auto fileName = QFileInfo(p_file->getName()).completeBaseName() + QLatin1Char('.') + suffix;
     
-    auto destFilePath = PathUtils::concatenateFilePath(p_outputDir, fileName);
+    auto destFilePath = PathUtils::concatenateFilePath(outputDir, fileName);
 
     bool success = getWebViewExporter(p_option)->doExport(p_option, p_file, destFilePath);
     if (success) {
@@ -460,7 +460,7 @@ QString Exporter::doExportHtml(const ExportOption &p_option, const QString &p_ou
 
         // Copy attachments if available.
         if (p_option.m_exportAttachments) {
-            exportAttachments(p_file->getNode(), p_file->getFilePath(), p_outputDir, destFilePath);
+            exportAttachments(p_file->getNode(), p_file->getFilePath(), outputDir, destFilePath);
         }
     }
     return outputFile;
