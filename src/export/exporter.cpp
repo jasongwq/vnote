@@ -448,7 +448,7 @@ QString Exporter::doExportHtml(const ExportOption &p_option, const QString &p_ou
     //auto fileName = FileUtils::generateFileNameWithSequence(p_outputDir,
     //                                                        QFileInfo(p_file->getName()).completeBaseName(),
     //                                                        suffix);
-    QString suffix outputDir=PathUtils::concatenateFilePath(p_file->getFilePath(), p_outputDir);
+    QString outputDir=PathUtils::concatenateFilePath(p_file->getFilePath(), p_outputDir);
 
     auto fileName = QFileInfo(p_file->getName()).completeBaseName() + QLatin1Char('.') + suffix;
     
